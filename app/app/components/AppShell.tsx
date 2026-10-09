@@ -81,17 +81,15 @@ export function AppShell({ owner, children }: { owner: string | null; children: 
         )}
       </header>
       <main className="mx-auto max-w-[1120px] px-4 pb-24 pt-8 sm:px-8 sm:pt-12">{children}</main>
-      <footer className="border-t border-line">
-        <p className="mx-auto max-w-[1120px] px-4 py-8 text-[13px] text-ink-3 sm:px-8">
+      <footer className="mx-auto max-w-[1120px] border-t border-line px-4 py-8 text-[13px] text-ink-3 sm:px-8">
+        <p>
           River is non-custodial: it has no vault and no contracts of its own. Your shares stay in your wallet and only
           move into a PancakeSwap v3 position you own. <Link to="/agent" className="font-semibold text-river">River for agents</Link>: ERC-8004
           identity, x402 and MCP.
         </p>
-        <div className="bg-[#0a0b10]">
-          <p className="mx-auto max-w-[1120px] px-4 py-7 font-mono text-[14px] text-white/45 sm:px-8">
-            River is a <a href="https://zvlint.com" target="_blank" rel="noreferrer" className="transition-colors hover:text-white/80">Zevlat Intelligence</a> venture
-          </p>
-        </div>
+        <p className="mt-4 font-mono">
+          River is a <a href="https://zvlint.com" target="_blank" rel="noreferrer" className="font-semibold text-ink-2 hover:text-river">Zevlat Intelligence</a> venture
+        </p>
       </footer>
     </>
   );
