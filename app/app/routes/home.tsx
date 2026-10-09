@@ -14,6 +14,7 @@ import { groupStocks } from "../lib/stocks.ts";
 import { StockCatalog } from "../components/StockCatalog.tsx";
 import { WeekStrip } from "../components/WeekStrip.tsx";
 import { RiverWaves } from "../components/RiverWaves.tsx";
+import { useScrollReveal } from "../components/useScrollReveal.ts";
 import { Countdown } from "../components/Countdown.tsx";
 import type { ReactNode } from "react";
 import { Panel, Pill, btn } from "../components/ui.tsx";
@@ -40,7 +41,7 @@ export async function loader() {
 /** One beat of the story: a small mono kicker, the line from the film, and the paragraph under it. */
 function Beat({ kick, title, children, className = "" }: { kick: string; title: ReactNode; children?: ReactNode; className?: string }) {
   return (
-    <div className={className}>
+    <div className={className} data-reveal>
       <p className="font-mono text-[13px] font-semibold uppercase tracking-[0.14em] text-river">{kick}</p>
       <h2 className="mt-2 text-[30px] font-semibold leading-[1.08] tracking-[-0.025em] sm:text-[38px]">{title}</h2>
       {children && <div className="mt-3 max-w-[60ch] space-y-3 text-[17px] text-ink-2">{children}</div>}
@@ -48,11 +49,13 @@ function Beat({ kick, title, children, className = "" }: { kick: string; title: 
   );
 }
 
-/** A figure the story leans on, big and condensed, with where it comes from. */
-function Figure({ value, label, source }: { value: string; label: string; source: string }) {
+/** A figure the story leans on, big and condensed, with where it comes from. It counts up when it scrolls in. */
+function Figure({ value, prefix = "", suffix = "", label, source }: { value: number; prefix?: string; suffix?: string; label: string; source: string }) {
   return (
-    <div className="rounded-panel border border-line bg-solid p-5 shadow-[0_1px_2px_rgb(14_23_38/0.05)] sm:p-6">
-      <div className="tnum condensed text-[48px] font-semibold leading-none tracking-[-0.02em] text-river-deep">{value}</div>
+    <div className="rounded-panel border border-line bg-solid p-5 shadow-[0_1px_2px_rgb(14_23_38/0.05)] sm:p-6" data-reveal>
+      <div className="tnum condensed text-[48px] font-semibold leading-none tracking-[-0.02em] text-river-deep" data-count={value} data-prefix={prefix} data-suffix={suffix}>
+        {prefix}{value.toFixed(1)}{suffix}
+      </div>
       <p className="mt-2 font-semibold text-ink">{label}</p>
       <p className="mt-1 text-[13px] text-ink-3">{source}</p>
     </div>
@@ -60,6 +63,7 @@ function Figure({ value, label, source }: { value: string; label: string; source
 }
 
 export default function Home({ loaderData: d }: Route.ComponentProps) {
+  useScrollReveal();
   const w = d.clock.window;
   const exit = w.end - SIGNAL_DEFAULTS.exitBufferMs;
   const entry = w.start + SIGNAL_DEFAULTS.settleMs;
@@ -115,7 +119,7 @@ export default function Home({ loaderData: d }: Route.ComponentProps) {
               those trades happen, so you keep holding, do nothing, and earn.
             </p>
           </Beat>
-          <div className="mt-6"><Figure value="$3.7M" label="traded on an average weekend, in a single pool" source="One bStock pool on PancakeSwap v3, Jul–Sep 2026" /></div>
+          <div className="mt-6"><Figure value={3.7} prefix="$" suffix="M" label="traded on an average weekend, in a single pool" source="One bStock pool on PancakeSwap v3, Jul–Sep 2026" /></div>
         </div>
         <div>
           <Beat kick="The clock" title="The market closes. The chain doesn't.">
@@ -124,7 +128,7 @@ export default function Home({ loaderData: d }: Route.ComponentProps) {
               price drifts sideways, and every trade still pays a fee.
             </p>
           </Beat>
-          <div className="mt-6"><Figure value="2.9%" label="48 h price range on weekends, against 5.8% on weekdays" source="NVDAB/USDT, Jul–Sep 2026" /></div>
+          <div className="mt-6"><Figure value={2.9} suffix="%" label="48 h price range on weekends, against 5.8% on weekdays" source="NVDAB/USDT, Jul–Sep 2026" /></div>
         </div>
       </section>
 
@@ -148,14 +152,14 @@ export default function Home({ loaderData: d }: Route.ComponentProps) {
               {d.backtest.rows.map((r) => (
                 <div key={r.asset} className="tnum grid grid-cols-[1fr_auto_auto] items-baseline gap-x-6 border-b border-line px-5 py-4 last:border-0 sm:grid-cols-[1fr_repeat(4,auto)] sm:px-6">
                   <span className="font-semibold">{r.asset}</span>
-                  <span className="condensed text-right text-3xl font-semibold text-river-deep">{r.netAprBase.toFixed(1)}%</span>
+                  <span className="condensed text-right text-3xl font-semibold text-river-deep" data-count={r.netAprBase.toFixed(1)} data-suffix="%">{r.netAprBase.toFixed(1)}%</span>
                   <span className="text-right text-lg">{r.netAprOthersX4.toFixed(1)}%</span>
                   <span className="hidden text-right sm:block">{r.windows}</span>
                   <span className="hidden text-right sm:block">{r.winRateBase}%</span>
                 </div>
               ))}
             </Panel>
-            <div className="mt-6 grid gap-6 md:grid-cols-2">
+            <div className="mt-6 grid gap-6 md:grid-cols-2" data-reveal="stagger">
               <p className="text-ink-2">
                 The production signal and planner, replayed over every closed window since each pool launched, on a
                 ${d.backtest.sizeUsd.toLocaleString("en-US")} position. Net of {d.backtest.costs}. If four times as much
@@ -178,13 +182,13 @@ export default function Home({ loaderData: d }: Route.ComponentProps) {
           Pick a stock River runs and an amount. The replay runs the same code the agent does over every past weekend and
           holiday, so the result is what River would have added after every cost.
         </p>
-        <div className="mt-8">
+        <div className="mt-8" data-reveal>
           <Simulator stocks={d.simStocks} initial={d.initialSim} />
         </div>
       </section>
 
       <section className="mt-24" aria-label="How River places the position">
-        <ol className="grid gap-5 md:grid-cols-3">
+        <ol className="grid gap-5 md:grid-cols-3" data-reveal="stagger">
           {([
             ["How: the position", "A tight band where the trades happen.", "River adds your shares and USDT as concentrated liquidity on PancakeSwap v3. Every swap through the band pays you a fee, and on weekends the price rarely leaves it."],
             ["How: the band", "Measured, not guessed.", "River reads how price moved inside the last four weekends, each rebased to its own start, and sizes the band to μ ± 2σ. Your shares go in as they are: nothing is swapped."],
@@ -229,12 +233,12 @@ export default function Home({ loaderData: d }: Route.ComponentProps) {
           15 minutes. Every day River looks for each one's PancakeSwap pool against USDT and replays its past weekends;
           a stock that consistently adds to its holders after every cost is switched on by itself.
         </p>
-        <div className="mt-8">
+        <div className="mt-8" data-reveal>
           <StockCatalog rows={d.stocks} />
         </div>
       </section>
 
-      <section className="mt-24 flex flex-wrap items-end justify-between gap-6 rounded-panel bg-ink p-6 text-white sm:p-10" aria-label="River for agents">
+      <section className="mt-24 flex flex-wrap items-end justify-between gap-6 rounded-panel bg-ink p-6 text-white sm:p-10" aria-label="River for agents" data-reveal>
         <div>
           <p className="font-mono text-[13px] font-semibold uppercase tracking-[0.14em] text-[#8fb0ff]">River is an agent too</p>
           <h2 className="mt-2 text-[30px] font-semibold leading-[1.08] tracking-[-0.025em] sm:text-[38px]">Other agents hire it.</h2>
@@ -247,7 +251,7 @@ export default function Home({ loaderData: d }: Route.ComponentProps) {
         </Link>
       </section>
 
-      <section className="mt-24 text-center" aria-label="Start">
+      <section className="mt-24 text-center" aria-label="Start" data-reveal="stagger">
         <h2 className="text-[44px] font-semibold leading-[1.02] tracking-[-0.04em] sm:text-[64px]">
           Hold your stocks.
           <span className="block text-river">Let the weekend pay.</span>

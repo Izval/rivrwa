@@ -6,6 +6,7 @@ import type { Route } from "./+types/agent";
 import { agent } from "../lib/api.server.ts";
 import type { ReactNode } from "react";
 import { EmptyState, btn } from "../components/ui.tsx";
+import { useScrollReveal } from "../components/useScrollReveal.ts";
 import { bscscanAddr, bscscanTx, dayLabel, shortAddr, usd } from "../lib/format.ts";
 
 export const meta: Route.MetaFunction = () => [
@@ -53,6 +54,7 @@ function Step({ n, title, children }: { n: number; title: string; children: Reac
 
 export default function Agent({ loaderData: { a } }: Route.ComponentProps) {
   const id = a?.identity.agentId ?? null;
+  useScrollReveal();
   return (
     <>
       <p className="font-mono text-[13px] font-semibold uppercase tracking-[0.14em] text-river">For agents</p>
@@ -69,7 +71,7 @@ export default function Agent({ loaderData: { a } }: Route.ComponentProps) {
         <div className="mt-8"><EmptyState title="The agent's API did not answer" hint="Try again in a minute." /></div>
       ) : (
         <>
-          <ol className="mt-10 grid gap-4 lg:grid-cols-3">
+          <ol className="mt-10 grid gap-4 lg:grid-cols-3" data-reveal="stagger">
             <Step n={1} title="Find it on-chain">
               <p>
                 ERC-8004 agent <strong className="text-ink">#{id ?? "pending"}</strong> in the BNB Chain identity registry. Its
@@ -87,7 +89,7 @@ export default function Agent({ loaderData: { a } }: Route.ComponentProps) {
             </Step>
           </ol>
 
-          <div className="mt-4 grid gap-4 lg:grid-cols-2">
+          <div className="mt-4 grid gap-4 lg:grid-cols-2" data-reveal="stagger">
             <section className={`${card} min-w-0 p-6`}>
               <p className={kick}>Over HTTP</p>
               <h2 className="mt-1 text-[20px] font-semibold">x402: pay, then call again</h2>
@@ -104,7 +106,7 @@ export default function Agent({ loaderData: { a } }: Route.ComponentProps) {
             </section>
           </div>
 
-          <section className={`${card} mt-4 grid gap-6 p-6 sm:grid-cols-3`} aria-label="Identity">
+          <section className={`${card} mt-4 grid gap-6 p-6 sm:grid-cols-3`} aria-label="Identity" data-reveal>
             <div>
               <p className={kick}>Identity</p>
               <p className="mt-1 text-[20px] font-semibold">ERC-8004 #{id ?? "pending"}</p>
@@ -143,7 +145,7 @@ export default function Agent({ loaderData: { a } }: Route.ComponentProps) {
           )}
 
           <h2 className="mt-14 text-[26px] font-semibold tracking-[-0.02em]">Built on the Binance Web3 API</h2>
-          <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+          <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3" data-reveal="stagger">
             {BINANCE.map(([m, what]) => (
               <div key={m} className={`${card} border-l-4 border-l-river p-5`}>
                 <div className="font-semibold text-ink">{m}</div>

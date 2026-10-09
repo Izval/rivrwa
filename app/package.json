@@ -14,6 +14,7 @@
   },
   "dependencies": {
     "@altananetwork/sdk": "^0.9.0",
+    "animejs": "^4.5.0",
     "isbot": "^5.1.36",
     "react": "^19.2.7",
     "react-dom": "^19.2.7",
