@@ -17,6 +17,26 @@ holding funds. An agent executes the mandate you set, from your own wallet.
   - **A. Binance Agentic Wallet**, approved in the Binance App as a weekend pass.
   - **B. River-native**, with any EVM wallet and an Altana smart account holding a scoped session key issued from the River UI.
 
+## For judges
+**Try it in two minutes.**
+- Open **https://rivrwa.com**: the tide gauge shows the next NYSE closed window, when River would enter and leave, and
+  counts down to it. Below it are the replayed backtest, a simulator over every past weekend for each stock River runs,
+  and the live catalog of every tokenized stock on BSC.
+- Ask the agent: `curl -i "https://api.rivrwa.com/v1/paid/plan?symbol=NVDAB&stock=1&usd=250"` answers `402` with its
+  x402 payment requirements. Or add `https://api.rivrwa.com/mcp` to any MCP client (5 tools).
+- Free endpoints: `https://api.rivrwa.com/v1/clock`, `/v1/signals`, `/v1/backtest`, `/v1/stocks`.
+
+**Where each criterion lives.**
+| Criterion | Where to look |
+|---|---|
+| Technical implementation | `packages/core`: a pure planner (`planner.ts`) over a local NYSE clock (`clock.ts`) and v3 math that fits the band to the wallet's own token ratio, so nothing is swapped (`v3.ts`). Two non-custodial signing paths: flow A drives the Binance Agentic Wallet from a Cloudflare container (`agent/src/agentic-wallet.ts`, `containers/baw`); flow B holds a scoped Altana session key sealed server-side (`workers/agent/src/altana*.ts`). Before River signs, `npm.ts` checks the calldata and Binance's `simulate` dry-runs it (`simguard.ts`). A daily discovery cron replays every tokenized stock's pool and switches stocks on by rule (`workers/api/src/discover.ts`, `gate.ts`). 80 tests (`npm test`). |
+| Creativity and originality | The edge is the market clock: liquidity only while the NYSE is closed, when price drifts sideways and weekend flow still pays fees; the same position on weekdays loses (`research/gate0`). The band is measured with IVL on past closed windows (`research/ivl-study`). The model is generic (`Asset + Clock + Venue + Mandate`), so other real-world assets with a clock can follow. River is also an agent that sells its own plan. |
+| Developer Experience Report | Submitted through the organisers' form. The dated raw facts behind it are in `docs/dx-log.md`. |
+| Product quality and UX | rivrwa.com: Binance pairing with a QR, the Altana wizard (create, fund, grant for 1, 3 or 6 months), mandate presets, and a dashboard with a readiness checklist, a rehearsal of the next entry, "Leave the pool now", revoke and withdraw. |
+| Special: Agentic Wallet | Flow A: River signs from the user's own Binance Agentic Wallet under a weekly pass. The `baw` session runs in a Cloudflare container, and River's keep-alive holds it up to Binance's 7-day cap (`workers/agent`). |
+| Special: BNB Agent Studio | ERC-8004 agent #365864, its plan sold over x402 v2 (b402 or a USDT transfer) and MCP, and the first paid sale on mainnet (see below). |
+| Binance Web3 API depth | Six modules: RWA Data, DeFi, Transaction, Market, b402 and the Agentic Wallet (table below). |
+
 ## River for agents (https://rivrwa.com/agent)
 - **Identity.** River is **ERC-8004 agent #365864** on BSC mainnet, in the IdentityRegistry
   `0x8004A169FB4a3325136EB29fA0ceB6D2e539a432`
@@ -36,8 +56,8 @@ holding funds. An agent executes the mandate you set, from your own wallet.
     First real sale, 2026-10-07: 0.10 USDT
     ([tx](https://bscscan.com/tx/0x1bfe700b217e4c1ffca9abf44c4b031f053da28c935e66a03ecc4a541b655a11)) answered with
     `200` + `PAYMENT-RESPONSE`; the same hash a second time got `409`.
-- **Self-funding.** Payments land in River's agent wallet, the same address that owns the identity. That wallet pays the
-  agent's own gas, and the treasury is public at `/v1/agent`.
+- **Self-funding.** Payments land in River's agent wallet, the same address that owns the identity, and that wallet pays
+  the agent's own gas.
 
 ## Binance Web3 API, module by module
 | Module | Endpoints | What River uses it for |
@@ -56,15 +76,15 @@ holding funds. An agent executes the mandate you set, from your own wallet.
 | `workers/api` | Public API (Cloudflare Worker): `/v1/clock`, `/v1/assets`, `/v1/stocks` (catalog synced from Binance RWA Data), `/v1/signal/:symbol`, `/v1/plan`, `/v1/backtest`, `/v1/agent`, `/v1/paid/plan` (x402), `/mcp` |
 | `agent/` | Cycle runner (idempotent tick) and the Agentic Wallet signer; flow B's Altana signer runs in `workers/agent` |
 | `workers/agent` | Private agent Worker: pairing, mandates, the 5-minute cron that runs cycles, Telegram (with the `baw` container in `containers/baw`) |
-| `app/` | Web app (React Router on a Worker): landing with the live signal and backtest, Binance pairing, Altana wizard, mandate, dashboard, history, `/agent` |
+| `app/` | Web app (React Router on a Worker): landing (tide gauge, replayed backtest, simulator, band schematic, catalog), Binance pairing, Altana wizard, mandate, dashboard, history, `/agent` |
 | `scripts/register-agent.ts` | Prints the ERC-8004 `register` tx for the operator to send, then reads the agent id back |
-| `research/` | Gate 0 (economics) and Gate 0-B (stack feasibility) |
+| `research/` | Gate 0 (economics), Gate 0-B (stack feasibility) and the IVL band study |
 | `docs/dx-log.md` | Raw facts for the Developer Experience Report |
 
 ## Develop
 ```bash
 npm install
-npm test                                  # core unit tests (node --test, TS via type stripping)
+npm test                                  # 80 tests: core, agent, agent Worker, app (node --test, TS via type stripping)
 node scripts/signal-live.ts               # live signal for every enabled asset (keyless)
 node scripts/binance-live.ts              # Binance Web3 API smoke test (needs .env.local)
 cd workers/api && npx wrangler dev --port 8788                      # local API (keys in workers/api/.dev.vars)
