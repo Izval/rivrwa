@@ -2,8 +2,8 @@
 // from; everyone else gets the one action that starts it.
 //
 // On the landing the bar floats clear over the water of the hero (white text, no fill) and turns solid white as soon
-// as the page scrolls; everywhere else it is solid from the start. The footer ends with the Zevlat Intelligence layer:
-// River is one of its ventures, next to IVL, the range metric River's band is measured with.
+// as the page scrolls; everywhere else it is solid from the start. The footer ends with the Zevlat Intelligence line,
+// as every Zevlat venture does.
 
 import { useEffect, useState, type ReactNode } from "react";
 import { Form, Link, NavLink, useLocation } from "react-router";
@@ -36,8 +36,8 @@ export function AppShell({ owner, children }: { owner: string | null; children: 
   const link = (active: boolean) => active ? (clear ? "bg-white/10 text-white" : "bg-river-mist text-river-deep") : clear ? "text-white/80 hover:text-white" : "text-ink-2 hover:text-ink";
   return (
     <>
-      {/* -mb-16 on the landing lets the hero run under the bar, so the bar can sit on the water. */}
-      <header className={`sticky top-0 z-20 border-b transition-[background-color,border-color,color,box-shadow] duration-300 ${overlay ? "-mb-16" : ""} ${clear ? "border-transparent bg-transparent text-white" : "border-line bg-white text-ink shadow-[0_1px_12px_rgb(14_23_38/0.06)]"}`}>
+      {/* On the landing the hero runs under the bar (64 px plus its 1 px border), so the bar can sit on the water. */}
+      <header className={`sticky top-0 z-20 border-b transition-[background-color,border-color,color,box-shadow] duration-300 ${overlay ? "-mb-[65px]" : ""} ${clear ? "border-transparent bg-transparent text-white" : "border-line bg-white text-ink shadow-[0_1px_12px_rgb(14_23_38/0.06)]"}`}>
         <div className="mx-auto flex h-16 max-w-[1120px] items-center gap-6 px-4 sm:px-8">
           <Link to="/" aria-label="River home"><Logo /></Link>
           {owner && (
@@ -87,18 +87,10 @@ export function AppShell({ owner, children }: { owner: string | null; children: 
           move into a PancakeSwap v3 position you own. <Link to="/agent" className="font-semibold text-river">River for agents</Link>: ERC-8004
           identity, x402 and MCP.
         </p>
-        <div className="bg-ink text-white">
-          <div className="mx-auto flex max-w-[1120px] flex-wrap items-center justify-between gap-x-8 gap-y-3 px-4 py-6 sm:px-8">
-            <a href="https://zvlint.com" target="_blank" rel="noreferrer" className="group flex items-baseline gap-3">
-              <span className="font-mono text-[11px] font-semibold uppercase tracking-[0.18em] text-white/50">A venture of</span>
-              <span className="text-[17px] font-semibold tracking-[-0.01em] transition-colors group-hover:text-[#8fb0ff]">Zevlat Intelligence</span>
-            </a>
-            <nav aria-label="Zevlat Intelligence" className="flex flex-wrap gap-x-6 gap-y-2 text-[13px] font-semibold text-white/60">
-              <a href="https://zvlint.com/ventures/ivl" target="_blank" rel="noreferrer" className="hover:text-white">IVL research</a>
-              <a href="https://github.com/Izval/rivrwa" target="_blank" rel="noreferrer" className="hover:text-white">Source on GitHub</a>
-              <Link to="/agent" className="hover:text-white">River for agents</Link>
-            </nav>
-          </div>
+        <div className="bg-[#0a0b10]">
+          <p className="mx-auto max-w-[1120px] px-4 py-7 font-mono text-[14px] text-white/45 sm:px-8">
+            River is a <a href="https://zvlint.com" target="_blank" rel="noreferrer" className="transition-colors hover:text-white/80">Zevlat Intelligence</a> venture
+          </p>
         </div>
       </footer>
     </>
