@@ -70,15 +70,18 @@ export function WeeklyBars({ windows }: { windows: SimWindow[] }) {
         <span>{dayLabel(windows[0].window)}</span>
         <span>{dayLabel(windows[windows.length - 1].window)}</span>
       </div>
-      <table className="sr-only">
-        <caption>Net result per past closed window</caption>
-        <thead><tr><th>Window</th><th>LP fees</th><th>Impermanent loss</th><th>Costs</th><th>Net</th></tr></thead>
-        <tbody>
-          {windows.map((w) => (
-            <tr key={w.window}><td>{w.window}</td><td>{usd(w.feesUsd)}</td><td>{usd(w.ilUsd)}</td><td>{usd(w.costsUsd)}</td><td>{usd(w.netUsd)}</td></tr>
-          ))}
-        </tbody>
-      </table>
+      {/* sr-only on a <table> itself does not clip it to 1px; the wrapper does. */}
+      <div className="sr-only">
+        <table>
+          <caption>Net result per past closed window</caption>
+          <thead><tr><th>Window</th><th>LP fees</th><th>Impermanent loss</th><th>Costs</th><th>Net</th></tr></thead>
+          <tbody>
+            {windows.map((w) => (
+              <tr key={w.window}><td>{w.window}</td><td>{usd(w.feesUsd)}</td><td>{usd(w.ilUsd)}</td><td>{usd(w.costsUsd)}</td><td>{usd(w.netUsd)}</td></tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
     </figure>
   );
 }

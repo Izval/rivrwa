@@ -1,15 +1,16 @@
 // agent.tsx — River seen as an agent rather than an app: its ERC-8004 identity on BSC, what other agents can buy
-// from it over x402 or MCP, what it has earned (the treasury that pays its own gas), and every cycle it has run,
-// with the transactions. Public on purpose: this page is the proof, so nothing on it needs a login.
+// from it, and how to call it over x402 or MCP. Three steps, two code samples, one list of the Binance modules
+// behind it. Solid cards and dark code blocks, so each part reads at a glance. Public: nothing here needs a login.
 
 import type { Route } from "./+types/agent";
 import { agent } from "../lib/api.server.ts";
-import { EmptyState, Panel, Pill, Stat, btn } from "../components/ui.tsx";
-import { bscscanAddr, bscscanTx, dayLabel, num, shortAddr, usd, when } from "../lib/format.ts";
+import type { ReactNode } from "react";
+import { EmptyState, btn } from "../components/ui.tsx";
+import { bscscanAddr, bscscanTx, dayLabel, shortAddr, usd } from "../lib/format.ts";
 
 export const meta: Route.MetaFunction = () => [
   { title: "River, the agent | River" },
-  { name: "description", content: "River's ERC-8004 identity, its paid plan for other agents (x402, MCP) and every cycle it has run on BSC." },
+  { name: "description", content: "River's ERC-8004 identity on BNB Chain and the weekend plan other agents buy from it over x402 or MCP." },
 ];
 
 export async function loader() {
@@ -36,116 +37,118 @@ const BINANCE = [
   ["Agentic Wallet", "flow A: River signs from your own Binance wallet under a weekly pass"],
 ] as const;
 
+const card = "rounded-panel border border-line bg-solid shadow-[0_1px_2px_rgb(14_23_38/0.05)]";
+const code = "whitespace-pre-wrap break-all rounded-control bg-ink p-4 font-mono text-[12.5px] leading-relaxed text-[#dbe4ff]";
+const kick = "font-mono text-[12px] font-semibold uppercase tracking-[0.12em] text-river";
+
+function Step({ n, title, children }: { n: number; title: string; children: ReactNode }) {
+  return (
+    <li className={`${card} p-6`}>
+      <span className="tnum flex size-8 items-center justify-center rounded-full bg-river text-[15px] font-semibold text-white">{n}</span>
+      <h3 className="mt-4 text-[20px] font-semibold leading-snug">{title}</h3>
+      <div className="mt-2 text-ink-2">{children}</div>
+    </li>
+  );
+}
+
 export default function Agent({ loaderData: { a } }: Route.ComponentProps) {
   const id = a?.identity.agentId ?? null;
   return (
     <>
-      <p className="text-[15px] font-semibold text-river">For agents</p>
-      <h1 className="condensed mt-1 text-[40px] font-semibold leading-[1.05] tracking-[-0.03em] sm:text-[52px]">River is an agent too</h1>
-      <p className="mt-3 max-w-2xl text-[17px] text-ink-2">
-        It has its own identity on BNB Chain, sells the plan it trades by to other agents, and pays its own gas from what
-        it earns. Everything below is read live from the chain and River's API.
+      <p className="font-mono text-[13px] font-semibold uppercase tracking-[0.14em] text-river">For agents</p>
+      <h1 className="mt-3 text-[44px] font-semibold leading-[1.02] tracking-[-0.04em] sm:text-[60px]">
+        River is an agent too.
+        <span className="block text-river">Other agents hire it.</span>
+      </h1>
+      <p className="mt-5 max-w-2xl text-[18px] text-ink-2">
+        River has its own identity on BNB Chain. Any agent can ask it for the weekend window and the band for free, and
+        buy a plan fitted to its own wallet for {usd(a?.pricing.planUsd ?? 0.1)}.
       </p>
 
       {!a ? (
         <div className="mt-8"><EmptyState title="The agent's API did not answer" hint="Try again in a minute." /></div>
       ) : (
         <>
-          <div className="mt-8 grid gap-4 lg:grid-cols-3">
-            <Panel className="p-5 sm:p-6">
-              <div className="flex items-center justify-between gap-3">
-                <h2 className="font-semibold">Identity</h2>
-                {id !== null ? <Pill tone="up">ERC-8004 #{id}</Pill> : <Pill tone="warn">Registration pending</Pill>}
-              </div>
-              <dl className="mt-4 space-y-3 text-[15px]">
-                <div><dt className="text-[13px] text-ink-3">Registry</dt><dd className="break-all font-mono text-[13px]">{a.identity.registry}</dd></div>
-                <div>
-                  <dt className="text-[13px] text-ink-3">Owner and treasury</dt>
-                  <dd>{a.wallet ? <a className={btn.link} href={bscscanAddr(a.wallet.address)} target="_blank" rel="noreferrer">{shortAddr(a.wallet.address)}</a> : "—"}</dd>
-                </div>
-                <div className="flex gap-4">
-                  <a className={btn.link} href={a.identity.registration} target="_blank" rel="noreferrer">Registration file</a>
-                  {a.identity.scan && <a className={btn.link} href={a.identity.scan} target="_blank" rel="noreferrer">8004scan</a>}
-                </div>
-              </dl>
-            </Panel>
-
-            <Panel className="p-5 sm:p-6">
-              <h2 className="font-semibold">Treasury</h2>
-              <div className="mt-4 grid grid-cols-2 gap-4">
-                <Stat label="Paid plans" value={a.treasury.paidCalls} />
-                <Stat label="Earned" value={usd(a.treasury.revenueUsd)} tone={a.treasury.revenueUsd > 0 ? "up" : undefined} />
-                <Stat label="BNB for gas" value={a.wallet?.bnb != null ? num(a.wallet.bnb, 4) : "—"} />
-                <Stat label="USDT held" value={a.wallet?.usdt != null ? usd(a.wallet.usdt) : "—"} />
-              </div>
-            </Panel>
-
-            <Panel className="p-5 sm:p-6">
-              <h2 className="font-semibold">What it sells</h2>
-              <p className="mt-3 text-[15px] text-ink-2">
-                A cycle plan fitted to <em>your</em> inventory, for <strong className="text-ink">{usd(a.pricing.planUsd)}</strong>: the closed
-                window, the IVL band snapped to pool ticks, the deposit that needs no swap, and the exact Binance lp-add arguments.
+          <ol className="mt-10 grid gap-4 lg:grid-cols-3">
+            <Step n={1} title="Find it on-chain">
+              <p>
+                ERC-8004 agent <strong className="text-ink">#{id ?? "pending"}</strong> in the BNB Chain identity registry. Its
+                registration file lists the endpoints below.
               </p>
-              <p className="mt-3 text-[13px] text-ink-3">Paid with {a.pricing.rails.join(" or ")}. The clock, the band and the cycle log stay free.</p>
-            </Panel>
-          </div>
+            </Step>
+            <Step n={2} title="Ask for free">
+              <p>The closed window, the stocks River runs, the IVL band for the next window and River's cycle log.</p>
+            </Step>
+            <Step n={3} title={`Buy the plan for ${usd(a.pricing.planUsd)}`}>
+              <p>
+                Fitted to <em>your</em> inventory: the band snapped to pool ticks, the deposit that needs no swap and the
+                exact Binance lp-add arguments. Paid with {a.pricing.rails.join(" or ")}.
+              </p>
+            </Step>
+          </ol>
 
           <div className="mt-4 grid gap-4 lg:grid-cols-2">
-            <Panel className="p-5 sm:p-6">
-              <h2 className="font-semibold">Over HTTP (x402)</h2>
-              <pre className="mt-3 overflow-x-auto rounded-control bg-[rgb(14_23_38/0.04)] p-4 font-mono text-[12.5px] leading-relaxed text-ink-2">{CURL}</pre>
-            </Panel>
-            <Panel className="p-5 sm:p-6">
-              <h2 className="font-semibold">Over MCP</h2>
-              <pre className="mt-3 overflow-x-auto rounded-control bg-[rgb(14_23_38/0.04)] p-4 font-mono text-[12.5px] leading-relaxed text-ink-2">{MCP}</pre>
-              <p className="mt-3 text-[13px] text-ink-3">Tools: get_weekend_window, list_assets, get_range, get_cycle_report (free) and plan_cycle (paid).</p>
-            </Panel>
+            <section className={`${card} min-w-0 p-6`}>
+              <p className={kick}>Over HTTP</p>
+              <h2 className="mt-1 text-[20px] font-semibold">x402: pay, then call again</h2>
+              <pre className={`${code} mt-4`}>{CURL}</pre>
+            </section>
+            <section className={`${card} min-w-0 p-6`}>
+              <p className={kick}>Over MCP</p>
+              <h2 className="mt-1 text-[20px] font-semibold">Add River to any MCP client</h2>
+              <pre className={`${code} mt-4`}>{MCP}</pre>
+              <p className="mt-4 text-[15px] text-ink-2">
+                Free: <span className="font-mono text-[13px] text-ink">get_weekend_window, list_assets, get_range, get_cycle_report</span>.
+                Paid: <span className="font-mono text-[13px] text-ink">plan_cycle</span>.
+              </p>
+            </section>
           </div>
 
-          <h2 className="condensed mt-12 text-2xl font-semibold">Cycles River has run</h2>
-          {a.cycles.length === 0 ? (
-            <div className="mt-4"><EmptyState title="No closed cycle yet" hint="Each cycle appears here, with its transactions on BscScan, as soon as River leaves the pool." /></div>
-          ) : (
-            <div className="mt-4 space-y-3">
-              {a.cycles.map((c) => (
-                <Panel as="article" key={c.txs.remove} className="flex flex-wrap items-baseline gap-x-6 gap-y-2 p-4 sm:p-5">
-                  <span className="font-semibold">{c.asset}</span>
-                  <span className="text-ink-2">{dayLabel(c.openedAt.slice(0, 10))} to {dayLabel(c.closedAt.slice(0, 10))}</span>
-                  <span className="font-mono text-[13px] text-ink-3">{c.owner}</span>
-                  <span className="tnum">fees {usd(c.feesUsd)}</span>
-                  <span className="ml-auto flex gap-4 text-[14px]">
-                    <a href={bscscanTx(c.txs.add)} target="_blank" rel="noreferrer" className={btn.link}>Deposit</a>
-                    <a href={bscscanTx(c.txs.remove)} target="_blank" rel="noreferrer" className={btn.link}>Withdrawal</a>
-                  </span>
-                </Panel>
-              ))}
+          <section className={`${card} mt-4 grid gap-6 p-6 sm:grid-cols-3`} aria-label="Identity">
+            <div>
+              <p className={kick}>Identity</p>
+              <p className="mt-1 text-[20px] font-semibold">ERC-8004 #{id ?? "pending"}</p>
             </div>
-          )}
+            <div className="min-w-0">
+              <p className="text-[13px] font-semibold text-ink-2">Registry on BNB Chain</p>
+              <p className="mt-1 break-all font-mono text-[13px] text-ink">{a.identity.registry}</p>
+            </div>
+            <div>
+              <p className="text-[13px] font-semibold text-ink-2">Owner wallet</p>
+              <p className="mt-1">{a.wallet ? <a className={btn.link} href={bscscanAddr(a.wallet.address)} target="_blank" rel="noreferrer">{shortAddr(a.wallet.address)}</a> : "—"}</p>
+              <p className="mt-2 flex gap-4">
+                <a className={btn.link} href={a.identity.registration} target="_blank" rel="noreferrer">Registration file</a>
+                {a.identity.scan && <a className={btn.link} href={a.identity.scan} target="_blank" rel="noreferrer">8004scan</a>}
+              </p>
+            </div>
+          </section>
 
-          {a.treasury.recent.length > 0 && (
+          {a.cycles.length > 0 && (
             <>
-              <h2 className="condensed mt-12 text-2xl font-semibold">Recent payments</h2>
-              <div className="mt-4 space-y-2">
-                {a.treasury.recent.map((p, i) => (
-                  <div key={p.tx ?? i} className="flex flex-wrap gap-x-6 gap-y-1 border-b border-line py-2 text-[15px]">
-                    <span className="tnum">{usd(p.usd)}</span>
-                    <span className="text-ink-2">{p.rail}</span>
-                    <span className="font-mono text-[13px] text-ink-3">{p.payer ? shortAddr(p.payer) : "—"}</span>
-                    <span className="text-ink-3">{when(p.at)}</span>
-                    {p.tx && <a className={`${btn.link} ml-auto`} href={bscscanTx(p.tx)} target="_blank" rel="noreferrer">Tx</a>}
-                  </div>
+              <h2 className="mt-14 text-[26px] font-semibold tracking-[-0.02em]">Cycles River has run</h2>
+              <div className="mt-4 space-y-3">
+                {a.cycles.map((c) => (
+                  <article key={c.txs.remove} className={`${card} flex flex-wrap items-baseline gap-x-6 gap-y-2 p-4 sm:p-5`}>
+                    <span className="font-semibold">{c.asset}</span>
+                    <span className="text-ink-2">{dayLabel(c.openedAt.slice(0, 10))} to {dayLabel(c.closedAt.slice(0, 10))}</span>
+                    <span className="font-mono text-[13px] text-ink-2">{c.owner}</span>
+                    <span className="ml-auto flex gap-4 text-[14px]">
+                      <a href={bscscanTx(c.txs.add)} target="_blank" rel="noreferrer" className={btn.link}>Deposit</a>
+                      <a href={bscscanTx(c.txs.remove)} target="_blank" rel="noreferrer" className={btn.link}>Withdrawal</a>
+                    </span>
+                  </article>
                 ))}
               </div>
             </>
           )}
 
-          <h2 className="condensed mt-12 text-2xl font-semibold">Built on the Binance Web3 API</h2>
+          <h2 className="mt-14 text-[26px] font-semibold tracking-[-0.02em]">Built on the Binance Web3 API</h2>
           <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
             {BINANCE.map(([m, what]) => (
-              <Panel key={m} className="p-4">
-                <div className="font-semibold">{m}</div>
-                <p className="mt-1 text-[14px] text-ink-2">{what}</p>
-              </Panel>
+              <div key={m} className={`${card} border-l-4 border-l-river p-5`}>
+                <div className="font-semibold text-ink">{m}</div>
+                <p className="mt-1 text-[15px] text-ink-2">{what}</p>
+              </div>
             ))}
           </div>
         </>
