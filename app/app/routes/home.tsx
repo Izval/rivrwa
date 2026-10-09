@@ -113,13 +113,13 @@ export default function Home({ loaderData: d }: Route.ComponentProps) {
         <div aria-hidden className="absolute inset-0 -z-10 [background:radial-gradient(900px_520px_at_80%_30%,rgb(31_91_255/0.34),transparent_65%),radial-gradient(760px_420px_at_0%_105%,rgb(31_91_255/0.2),transparent_60%)]" />
         <Currents data-intro="fade" className="absolute inset-x-0 top-0 -z-10 h-[64%] w-full" from={0.34} to={0.94} lines={8} />
         <div aria-hidden className="absolute inset-0 -z-10 bg-[linear-gradient(90deg,#040a1c_0%,rgb(4_10_28/0.75)_38%,transparent_75%)]" />
-        <div className="mx-auto max-w-[1120px] px-4 pb-12 pt-16 sm:px-8 sm:pb-16 sm:pt-24">
+        <div className="mx-auto max-w-[1120px] px-4 pb-12 pt-32 sm:px-8 sm:pb-16 sm:pt-40">
           <p data-intro="fade" className="font-mono text-[13px] font-semibold uppercase tracking-[0.18em] text-[#8fb0ff]">Real-world assets, made fluid</p>
           <h1 data-intro="title" className="mt-5 text-[58px] font-semibold leading-[0.94] tracking-[-0.05em] sm:text-[96px]">
             Let them trade.
             <span className="block text-[#6f9bff]">You earn.</span>
           </h1>
-          <p data-intro="fade" className="mt-7 max-w-[46ch] text-[19px] text-white/70">
+          <p data-intro="fade" className="mt-7 max-w-[56ch] text-pretty text-[19px] text-white/70">
             Earn from weekend trading, without trading. River puts your tokenized stocks where the weekend trades happen,
             <strong className="font-semibold text-white"> only while Wall Street is closed</strong>, and brings them back to your
             wallet before it opens.
@@ -229,9 +229,9 @@ export default function Home({ loaderData: d }: Route.ComponentProps) {
         <ol className="mt-12 grid gap-px overflow-hidden rounded-panel border border-line bg-line md:grid-cols-3" data-reveal="stagger">
           {([
             ["+1 h", "In after the close.", "1 hour after the close, once prints settle, River deposits your shares and USDT into the band."],
-            ["μ ± 2σ", "Measured, not guessed.", "The band is IVL's μ ± 2σ over the last four weekends, each rebased to its own start. Nothing is swapped."],
+            ["μ ± 2σ", "Measured, not guessed.", <>The band is <a href="https://zvlint.com/ventures/ivl" target="_blank" rel="noreferrer" className={btn.link}>IVL</a>'s μ ± 2σ over the last four weekends, each rebased to its own start. Nothing is swapped.</>],
             ["−2 h", "Out before the open.", "2 hours before the reopen, River withdraws. Your position comes back to your wallet, plus the fees."],
-          ] as const).map(([mark, title, body]) => (
+          ] as [string, string, ReactNode][]).map(([mark, title, body]) => (
             <li key={title} className="bg-solid p-6">
               <span className="font-mono text-[13px] font-semibold text-river">{mark}</span>
               <h3 className="mt-2 text-[20px] font-semibold leading-snug">{title}</h3>

@@ -107,7 +107,7 @@ body {
   }
 }
 
-/* Frosted surfaces. `glass` for panels, `glass-bar` for the sticky top bar. */
+/* Frosted surfaces for panels. */
 .glass {
   background: var(--surface);
   border: 1px solid rgb(255 255 255 / 0.9);
@@ -117,12 +117,6 @@ body {
     0 12px 32px -12px rgb(14 23 38 / 0.1);
   backdrop-filter: blur(20px) saturate(1.4);
   -webkit-backdrop-filter: blur(20px) saturate(1.4);
-}
-.glass-bar {
-  background: rgb(247 248 250 / 0.72);
-  border-bottom: 1px solid var(--line);
-  backdrop-filter: blur(16px) saturate(1.4);
-  -webkit-backdrop-filter: blur(16px) saturate(1.4);
 }
 
 /* Numbers never jitter. */
