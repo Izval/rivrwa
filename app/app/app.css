@@ -64,6 +64,47 @@ body {
     radial-gradient(900px 480px at 100% 0%, rgb(14 159 110 / 0.05), transparent 60%),
     var(--bg);
   background-attachment: fixed;
+  /* Full-bleed stages use 100vw; clip (not hidden) so the sticky top bar keeps working. */
+  overflow-x: clip;
+}
+
+/* A stage that spans the whole viewport inside the centred page frame. */
+.bleed {
+  width: 100vw;
+  margin-left: calc(50% - 50vw);
+}
+
+/* The landing alternates two grounds: water (the closed market, deep navy) and land (porcelain, instruments). */
+.water {
+  --water: #040a1c;
+  background: var(--water);
+  color: #fff;
+}
+
+/* The intro: root.tsx marks <html class="intro"> before paint unless the visitor prefers reduced motion, so the hero's
+ * parts start hidden instead of flashing in and out at hydration. The delayed animation is a safety net: if the
+ * script never runs the intro, everything shows anyway. */
+.intro [data-intro] {
+  opacity: 0;
+  animation: intro-safety 0s 3.5s forwards;
+}
+@keyframes intro-safety {
+  to {
+    opacity: 1;
+  }
+}
+
+/* The surface between two stages: a wave that drifts sideways forever (two copies, so -50% loops seamlessly). */
+.wave-drift {
+  animation: wave-drift 18s linear infinite;
+}
+.wave-drift-slow {
+  animation: wave-drift 31s linear infinite reverse;
+}
+@keyframes wave-drift {
+  to {
+    transform: translateX(-50%);
+  }
 }
 
 /* Frosted surfaces. `glass` for panels, `glass-bar` for the sticky top bar. */
@@ -94,7 +135,7 @@ body {
   font-stretch: 78%;
 }
 
-/* The closed window drawn as water: a slow drift of light along the band. It is the only ambient motion in the app. */
+/* The closed window drawn as water: a slow drift of light along the band. */
 .river-flow {
   background:
     linear-gradient(90deg, transparent 0%, rgb(255 255 255 / 0.35) 50%, transparent 100%) 0 0 / 40% 100% repeat-x,
