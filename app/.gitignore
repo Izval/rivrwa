@@ -1,0 +1,4 @@
+/.react-router/
+/build/
+worker-configuration.d.ts
+*.tsbuildinfo

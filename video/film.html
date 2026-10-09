@@ -1,0 +1,623 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>River — product film</title>
+<!--
+  film.html — River's product film, as code. The story: same stock, same upside, plus a yield. River makes
+  real-world assets fluid; a holder's tokenized shares earn nothing extra, yet the chain keeps trading while the
+  market is closed. Then the opportunity (returns), how (band, IVL, timing), why it is safe (the user's own wallet,
+  for a week or 1–6 months), River as an agent, and the close.
+
+  Two layouts. "full" beats are centred type over the river; "split" beats keep the copy on the left and a live
+  schematic on the right, with HTML labels joined to the drawing by canvas leader lines. Copy inside a beat can
+  change in steps, and any element can build in (data-at).
+
+  Every pixel is a pure function of the time `t` (no CSS transitions, no wall clock), which is what lets
+  video/render.mjs step it frame by frame into an MP4 that matches the preview exactly. Open the file in a browser to
+  preview (?t=42 starts at 42 s; space pauses).
+
+  Figures and their sources:
+    $3.7M per weekend                       research/gate0/data/ohlcv_NVDAB.json (9 closed windows, Jul–Sep 2026)
+    48 h range 2.9% vs 5.8%, APR bars       research/gate0/README.md (production replay)
+    IVL +41–81%                             research/ivl-study
+    ~8–25% a year, 5% + $0.25               README.md, packages/core/src/planner.ts (RIVER_FEE)
+    ERC-8004 #365864, $0.10 plan            README.md (registration and first x402 sale)
+-->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=block" rel="stylesheet">
+<style>
+  :root {
+    --ink:#0e1726; --river:#1f5bff; --river-deep:#1646cc; --up:#0e9f6e; --down:#d6455d;
+    --sans:"Instrument Sans", ui-sans-serif, system-ui, sans-serif; --mono:"JetBrains Mono", ui-monospace, monospace;
+    --c1:#0e1726; --c2:#4f5a6d; --c3:#8a93a3; --ca:#1f5bff;
+  }
+  html, body { margin:0; background:#dfe3ea; }
+  #frame { position:relative; width:1920px; height:1080px; overflow:hidden; font-family:var(--sans); color:var(--c1); }
+  #fx { position:absolute; inset:0; width:1920px; height:1080px; }
+  #copy { position:absolute; inset:0; }
+  .beat { position:absolute; opacity:0; will-change:opacity, transform; }
+  .beat.split { left:132px; top:300px; width:700px; }
+  .beat.full { left:0; top:0; width:1920px; height:1080px; display:flex; flex-direction:column; align-items:center; justify-content:center; text-align:center; box-sizing:border-box; }
+  .kick { font:600 20px/1 var(--mono); letter-spacing:.08em; color:var(--ca); text-transform:uppercase; }
+  h1, h2 { margin:22px 0 0; font-weight:600; letter-spacing:-0.03em; line-height:1.04; color:var(--c1); }
+  h1 { font-size:132px; letter-spacing:-0.05em; }
+  h2 { font-size:68px; }
+  .full h2 { font-size:84px; margin:0; max-width:1500px; }
+  .full h1 { margin:0; }
+  .beat p { margin:28px 0 0; font-size:28px; line-height:1.5; color:var(--c2); max-width:660px; }
+  .full p { font-size:40px; max-width:1500px; margin-top:26px; }
+  .beat p strong, .full strong { color:var(--c1); font-weight:600; }
+  .beat .fine { font:500 18px/1.5 var(--mono); color:var(--c3); margin-top:26px; }
+  .full .fine { font-size:20px; margin-top:40px; }
+  .accent { color:var(--ca) !important; }
+  .labels { position:absolute; inset:0; pointer-events:none; }
+  .lb { position:absolute; max-width:300px; transform:translateY(-50%); font:500 19px/1.4 var(--mono); color:var(--c2); opacity:0; white-space:normal; }
+  .lb.r { text-align:right; }
+  .lb.hot { color:var(--ca); font-weight:700; }
+  .lb.ok { color:var(--up); font-weight:700; }
+  .lb.bad { color:var(--down); font-weight:700; }
+  .brand { position:absolute; left:132px; top:56px; display:flex; align-items:center; gap:14px; font:600 30px/1 var(--sans); letter-spacing:-0.02em; color:var(--c1); }
+  .site { position:absolute; right:132px; top:62px; font:500 20px/1 var(--mono); color:var(--c3); }
+  .logo { display:flex; align-items:center; gap:30px; }
+  .logo h1 { margin:0; }
+  @media screen { body { display:grid; place-items:center; min-height:100vh; } #frame { transform-origin:center; } }
+</style>
+</head>
+<body>
+<div id="frame">
+  <canvas id="fx" width="1920" height="1080"></canvas>
+  <div class="brand" id="brand">
+    <svg width="40" height="28" viewBox="0 0 40 28" aria-hidden="true"><path d="M2 9c6-6 12 6 18 0s12 6 18 0M2 19c6-6 12 6 18 0s12 6 18 0" fill="none" stroke="#1f5bff" stroke-width="3.2" stroke-linecap="round"/></svg>
+    River
+  </div>
+  <div class="site" id="site">rivrwa.com</div>
+  <div id="copy"></div>
+  <div class="labels" id="labels"></div>
+</div>
+<script>
+const WAVES = (w) => `<svg width="${w}" height="${w * 0.7}" viewBox="0 0 40 28" aria-hidden="true"><path d="M2 9c6-6 12 6 18 0s12 6 18 0M2 19c6-6 12 6 18 0s12 6 18 0" fill="none" stroke="#1f5bff" stroke-width="3.2" stroke-linecap="round"/></svg>`;
+
+// ── the script. `d` seconds; `steps` = [[at, html], …] replace each other; `labels` annotate the stage. ──
+// Inside a step: data-at="s" builds an element in. `speed` plays a beat's drawing faster than it was written.
+// Label: [id, text, x, y, align ("l" | "r"), appear (s into the drawing's own time), class?]. x/y in stage units (0–100).
+// the music's grid: 88 BPM, one bar = 2.727 s. Beats last whole bars so every cut lands on a downbeat (video/mux.sh).
+const BPM = 88, BAR = 240 / BPM, bars = (n) => n * BAR;
+const BIG = `style="font-size:116px;letter-spacing:-0.045em"`;
+const SCENES = [
+  // ── the noise, the silence, River ──
+  { id: "noise", d: bars(2), layout: "full", steps: [[0, ``]], labels: [] },
+  { id: "calm", d: bars(3), layout: "full", cut: true, pad: [0, 60],
+    steps: [[0.35, `<h2 ${BIG}>You don't have to.</h2>`],
+            [BAR + 0.1, `<h2 ${BIG}>Let them trade.</h2><h2 class="accent" ${BIG.replace('"', '"margin-top:6px;')}>You earn.</h2>`]], labels: [] },
+  { id: "reveal", d: bars(2), layout: "full", pad: [0, 40],
+    steps: [[0, `<div class="logo" data-at="0.15">${WAVES(120)}<h1>River</h1></div>
+      <p data-at="0.9" style="margin-top:40px">Earn from weekend trading, <strong>without trading.</strong></p>
+      <div class="kick" data-at="1.7" style="margin-top:34px">Real-world assets, made fluid</div>`]], labels: [] },
+  { id: "edge", d: bars(5), layout: "split",
+    steps: [[0, `<div class="kick">The edge</div><h2>Their weekend trading pays you.</h2><p>Someone is always trading tokenized stocks on weekends: <strong>$3.7M</strong> on an average weekend, in a single pool. Every trade pays a fee. River puts your shares where those trades happen, so you keep holding, do nothing, and earn.</p><p class="fine">Average weekend volume of one bStock pool on PancakeSwap v3, Jul–Sep 2026.</p>`]],
+    labels: [["tr", "weekend traders, day and night", 4, 3, "l", 0.6], ["pool", "every trade pays a fee", 96, 12, "r", 1.6, "ok"]] },
+  { id: "clock", d: bars(6), base: 20, layout: "split",
+    steps: [[0, `<div class="kick">The clock</div><h2>The market closes. The chain doesn't.</h2><p>From Friday night to Sunday night the NYSE is closed, but bStocks keep trading on-chain. With no news, the price <strong>drifts sideways</strong>, and every trade still pays a fee.</p><p class="fine">NVDAB/USDT: $3.7M traded on an average weekend, in a 48 h range of 2.9% (5.8% on weekdays). Jul–Sep 2026.</p>`]],
+    labels: [["open", "NYSE open\nMon–Fri, 9:30–4 ET", 96, 14, "r", 1.2], ["win", "closed window\nFri 8 pm → Sun 8 pm ET", 4, 14, "l", 2.6, "hot"], ["wk", "weekday: gaps and trends", 4, 92, "l", 5], ["we", "weekend: sideways", 96, 92, "r", 6.5, "hot"]] },
+  // ── the opportunity ──
+  { id: "returns", d: bars(5), base: 18, layout: "split",
+    steps: [[0, `<div class="kick">The opportunity</div><h2>~8–25% a year, on top of your stock.</h2><p>Earned from weekend trading fees, net of impermanent loss, gas and River's fee. Your shares are back before the open, so you keep the stock's moves.</p><p class="fine">Replay of every weekend since each pool launched: 8 per stock, a short sample. ×2 and ×4 model other LPs crowding in. River's fee: 5% of fees + $0.25 a weekend.</p>`]],
+    labels: [["claim", "our claim: ~8–25% a year", 96, 30, "r", 7, "hot"], ["src", "net APR, $10k, production replay", 4, 6, "l", 1]] },
+  // ── how: the position, placed with care ──
+  { id: "band", d: bars(5), base: 18, layout: "split",
+    steps: [[0, `<div class="kick">How: the position</div><h2>A tight band where the trades happen.</h2><p>River adds your shares and USDT as concentrated liquidity on PancakeSwap v3. Every swap through the band pays you a fee, and on weekends the price <strong>rarely leaves it</strong>.</p>`]],
+    labels: [["band", "your liquidity band", 4, 24, "l", 1], ["swap", "every swap through the band pays a fee", 96, 9, "r", 2.6], ["fees", "fees earned", 96, 90, "r", 4, "ok"]] },
+  { id: "ivl", d: bars(6), base: 20, layout: "split",
+    steps: [[0, `<div class="kick">How: the band</div><h2>Measured, not guessed.</h2><p>River reads how price moved inside the <strong>last four weekends</strong>, each rebased to its own start, and sizes the band to <strong>μ ± 2σ</strong>.</p><p class="fine">In replays the IVL band lifted net APR by 41–81% over a plain range rule (research/ivl-study).</p>`]],
+    labels: [["past", "last 4 windows, rebased to entry", 4, 9, "l", 1], ["dist", "how price oscillates inside a window", 96, 9, "r", 3.5], ["sig", "deploy μ ± 2σ", 96, 92, "r", 6, "hot"], ["ivl", "IVL · Internal Variance of Lateralization", 4, 92, "l", 8]] },
+  { id: "cycle", d: bars(7), base: 22, layout: "split",
+    steps: [[0, `<div class="kick">How: the timing</div><h2>In after the close. Out before the open.</h2><p><strong>1 hour</strong> after the close, River deposits your shares and USDT into the band. <strong>2 hours</strong> before the reopen, it withdraws. Your position comes back, <strong>plus the fees</strong>.</p>`]],
+    labels: [["w", "your wallet", 5, 12, "l", 0.8], ["p", "PancakeSwap v3 position", 95, 12, "r", 0.8], ["in", "enter +1 h", 22, 92, "l", 3.5, "hot"], ["out", "exit −2 h", 78, 92, "r", 13, "hot"], ["back", "back in your wallet + fees", 50, 62, "l", 17.5, "ok"]] },
+  // ── safe, and on your terms ──
+  { id: "safe", d: bars(6), base: 22, layout: "split",
+    steps: [[0, `<div class="kick">Safe by design</div><h2>We never touch your funds.</h2><p>Everything runs from <strong>your own wallet</strong>, so you don't have to trust us. River's agent can only move your shares into the pool and back. Binance checks every move first, and anything else is refused.</p>`]],
+    labels: [["agent", "River's agent: only within your rules", 96, 8, "r", 1], ["mand", "your rules: amount · range · end date", 4, 8, "l", 2.2], ["sim", "Binance checks every move first", 4, 72, "l", 4, "hot"], ["ok", "wallet ↔ pool only", 96, 72, "r", 6, "ok"], ["no", "anything else: refused", 96, 93, "r", 9, "bad"]] },
+  { id: "term", d: bars(4), base: 16, layout: "split",
+    steps: [[0, `<div class="kick">On your terms</div><h2>Weekly, or on autopilot for months.</h2><p>With a <strong>Binance Wallet</strong>, renew each week with a tap in the Binance app. With <strong>any other wallet</strong>, set it once for 1, 3 or 6 months. Stop it whenever you want.</p>`]],
+    labels: [["a", "Binance Wallet\nrenew weekly in the app", 4, 13, "l", 1, "hot"], ["b", "any EVM wallet\nautomatic for 1, 3 or 6 months", 4, 88, "l", 2.4, "hot"], ["same", "one agent, your rules", 96, 30, "r", 4.5]] },
+  { id: "agent", d: bars(4), layout: "split",
+    steps: [[0, `<div class="kick">River is an agent too</div><h2>Other agents hire it.</h2><p>River is ERC-8004 agent <strong>#365864</strong> on BNB Chain. Any agent can buy its weekend plan for <strong>$0.10</strong> over x402 or MCP.</p><p class="fine">First sale: 0.10 USDT, 7 Oct 2026. What it earns pays its own gas.</p>`]],
+    labels: [] },
+  // ── close ──
+  { id: "cta", d: bars(3), layout: "full", pad: [0, 300],
+    steps: [[0, `<h2 data-at="0.3">Hold your stocks.</h2><h2 data-at="1.3" class="accent" style="margin-top:6px">Let the weekend pay.</h2>
+      <div class="logo" data-at="2.8" style="margin-top:64px;gap:20px">${WAVES(56)}<span style="font:600 56px/1 var(--sans);letter-spacing:-0.02em">rivrwa.com</span></div>`]], labels: [] },
+];
+const TOTAL = SCENES.reduce((a, s) => a + s.d, 0);
+let acc = 0;
+for (const s of SCENES) { s.t0 = acc; acc += s.d; if (s.base) s.speed = s.base / s.d; } // v3's beats keep their pace, stretched to whole bars
+
+// ── DOM: one element per step, plus the labels ──
+const copyEl = document.getElementById("copy"), labelsEl = document.getElementById("labels");
+for (const s of SCENES) {
+  s.els = s.steps.map(([at, html], k) => {
+    const e = document.createElement("div"); e.className = `beat ${s.layout}`; e.innerHTML = html;
+    if (s.pad) { e.style.paddingTop = `${s.pad[0]}px`; e.style.paddingBottom = `${s.pad[1]}px`; }
+    copyEl.appendChild(e);
+    return { e, at, end: k + 1 < s.steps.length ? s.steps[k + 1][0] : s.d,
+      builds: [...e.querySelectorAll("[data-at]")].map((n) => ({ n, at: +n.dataset.at })) };
+  });
+  s.lbs = s.labels.map(([id, text, x, y, align, at, cls]) => {
+    const e = document.createElement("div");
+    e.className = `lb ${align === "r" ? "r" : ""} ${cls ?? ""}`;
+    e.innerHTML = text.replace(/\n/g, "<br>");
+    labelsEl.appendChild(e);
+    return { id, x, y, align, at: at / (s.speed ?? 1), e };
+  });
+}
+
+// ── stage geometry: an 840 px square on the right; stage units are 0–100 ──
+const SX = 920, SY = 118, SW = 840;
+const cv = document.getElementById("fx"), ctx = cv.getContext("2d");
+const U = SW / 100;
+const X = (x) => SX + x * U, Y = (y) => SY + y * U;
+const C = { ink: "14,23,38", ink2: "79,90,109", ink3: "138,147,163", line: "226,230,236", river: "31,91,255", deep: "22,70,204", mist: "232,238,255", up: "14,159,110", down: "214,69,93" };
+const rgba = (c, a) => `rgba(${C[c]},${a})`;
+const TAU = Math.PI * 2;
+const clamp = (x, a = 0, b = 1) => Math.max(a, Math.min(b, x));
+const ease = (u) => { u = clamp(u); return u < 0.5 ? 4 * u * u * u : 1 - Math.pow(-2 * u + 2, 3) / 2; };
+const eout = (u) => 1 - Math.pow(1 - clamp(u), 3);
+const ramp = (t, a, b) => clamp((t - a) / (b - a));
+const mix = (a, b, u) => a + (b - a) * u;
+function rng(seed) { return () => { seed = (seed + 0x6d2b79f5) | 0; let t = Math.imul(seed ^ (seed >>> 15), 1 | seed); t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t; return ((t ^ (t >>> 14)) >>> 0) / 4294967296; }; }
+// smooth deterministic noise: sum of sines with seeded phases
+function noise(seed, n = 5) { const r = rng(seed); const w = Array.from({ length: n }, (_, i) => ({ f: 0.6 + i * 1.7 + r() * 0.8, p: r() * TAU, a: 1 / (i + 1) })); return (x) => w.reduce((s, k) => s + k.a * Math.sin(x * k.f + k.p), 0) / 1.6; }
+
+// drawing primitives in stage units
+const lw = (u) => { ctx.lineWidth = Math.max(1, u * U); };
+function rr(x, y, w, h, r) { ctx.beginPath(); ctx.roundRect(X(x), Y(y), w * U, h * U, r * U); }
+function circ(x, y, r) { ctx.beginPath(); ctx.arc(X(x), Y(y), r * U, 0, TAU); }
+function seg(x1, y1, x2, y2) { ctx.beginPath(); ctx.moveTo(X(x1), Y(y1)); ctx.lineTo(X(x2), Y(y2)); }
+const FONT = (size, weight, font) => `${weight} ${size}px ${font === "mono" ? '"JetBrains Mono", monospace' : '"Instrument Sans", sans-serif'}`;
+function txt(s, x, y, size, color, align = "center", weight = 500, font = "mono") {
+  ctx.font = FONT(size * U, weight, font); ctx.fillStyle = color; ctx.textAlign = align; ctx.textBaseline = "middle"; ctx.fillText(s, X(x), Y(y));
+}
+function hex(x, y, r, rot = Math.PI / 6) { ctx.beginPath(); for (let i = 0; i < 6; i++) { const a = rot + (i * TAU) / 6; ctx.lineTo(X(x + Math.cos(a) * r), Y(y + Math.sin(a) * r)); } ctx.closePath(); }
+function diamond(x, y, r) { ctx.beginPath(); ctx.moveTo(X(x), Y(y - r)); ctx.lineTo(X(x + r), Y(y)); ctx.lineTo(X(x), Y(y + r)); ctx.lineTo(X(x - r), Y(y)); ctx.closePath(); }
+const qb = (a, c, b, t) => ({ x: (1 - t) * (1 - t) * a.x + 2 * (1 - t) * t * c.x + t * t * b.x, y: (1 - t) * (1 - t) * a.y + 2 * (1 - t) * t * c.y + t * t * b.y });
+function card(x, y, w, h, a = 1) { // frosted panel
+  ctx.save(); ctx.shadowColor = `rgba(14,23,38,${0.08 * a})`; ctx.shadowBlur = 3 * U; ctx.shadowOffsetY = 0.8 * U;
+  ctx.fillStyle = `rgba(255,255,255,${0.94 * a})`; rr(x, y, w, h, 2.2); ctx.fill(); ctx.restore();
+  ctx.strokeStyle = rgba("line", a); lw(0.12); rr(x, y, w, h, 2.2); ctx.stroke();
+}
+function chip(x, y, sym, sub, a = 1, w = 30) {
+  card(x, y, w, 9, a);
+  ctx.globalAlpha = a; circ(x + 4.6, y + 4.5, 2.6); ctx.fillStyle = rgba("river", 1); ctx.fill();
+  txt(sym[0], x + 4.6, y + 4.6, 2.6, "#fff", "center", 700, "sans");
+  txt(sym, x + 8.8, y + 3.4, 2.5, rgba("ink", 1), "left", 700, "sans");
+  txt(sub, x + 8.8, y + 6.2, 1.75, rgba("ink3", 1), "left", 500);
+  ctx.globalAlpha = 1;
+}
+const coin = (x, y, r = 0.75, a = 1) => { circ(x, y, r); ctx.fillStyle = rgba("up", a); ctx.fill(); };
+
+// background: porcelain, a soft river glow behind the stage (or the frame), a dot grid and registration corners
+function drawBackdrop(full) {
+  ctx.fillStyle = "#f7f8fa"; ctx.fillRect(0, 0, 1920, 1080);
+  const cx = full ? 960 : X(52), cy = full ? 540 : Y(48);
+  const g = ctx.createRadialGradient(cx, cy, 40, cx, cy, full ? 900 : 620);
+  g.addColorStop(0, "rgba(232,238,255,0.95)"); g.addColorStop(1, "rgba(232,238,255,0)");
+  ctx.fillStyle = g; ctx.fillRect(0, 0, 1920, 1080);
+  if (full) return;
+  ctx.fillStyle = rgba("ink3", 0.22);
+  for (let x = 0; x <= 100; x += 5) for (let y = 0; y <= 100; y += 5) ctx.fillRect(X(x) - 1, Y(y) - 1, 2, 2);
+  ctx.strokeStyle = rgba("ink3", 0.45); ctx.lineWidth = 1.5; ctx.beginPath();
+  for (const [x, y, dx, dy] of [[-2, -2, 1, 1], [102, -2, -1, 1], [-2, 102, 1, -1], [102, 102, -1, -1]]) {
+    ctx.moveTo(X(x), Y(y + dy * 3)); ctx.lineTo(X(x), Y(y)); ctx.lineTo(X(x + dx * 3), Y(y));
+  }
+  ctx.stroke();
+}
+
+// the river: lines and particles across the whole frame (pixels), for the reveal and the call to action
+const flow = noise(11, 4);
+function riverWide(lt, a, y0 = 760, gap = 52) {
+  for (let k = 0; k < 5; k++) {
+    const yb = y0 + k * gap, ph = k * 1.3, yAt = (x) => yb + Math.sin(x / 150 + lt * 0.9 + ph) * 24 + flow(x / 330 + k) * 11;
+    ctx.beginPath(); for (let x = -20; x <= 1940; x += 12) x === -20 ? ctx.moveTo(x, yAt(x)) : ctx.lineTo(x, yAt(x));
+    ctx.strokeStyle = rgba("river", a * (0.12 + 0.13 * (k % 2))); ctx.lineWidth = 3 + 2 * (k % 3); ctx.stroke();
+    for (let i = 0; i < 14; i++) { const x = ((i * 151 + lt * (90 + k * 18)) % 2040) - 60; ctx.beginPath(); ctx.arc(x, yAt(x), 3.6, 0, TAU); ctx.fillStyle = rgba("river", a * 0.75); ctx.fill(); }
+  }
+}
+
+// ── scenes: draw(lt, a) — lt = seconds into the beat (may run past d in a crossfade), a = opacity ──
+// the noise: generic pitches to keep trading (no brands, no tickers), spawning ever faster (t = T·(k/N)^0.6)
+const NOISE = (() => {
+  const msgs = [["Markets never close.", "Trade all weekend →"], ["Price alert", "It's moving. Don't miss it."], ["One more trade", "Your P&L is waiting."], ["24/7 markets", "No days off."],
+    ["Weekend session is live", "Open the app."], ["Don't fall behind", "Others are trading now."], ["New signal", "Act before Monday."], ["Stay ahead", "Check the charts again."]];
+  const r = rng(41), N = 34, T = BAR * 2 - 0.35;
+  return Array.from({ length: N }, (_, k) => ({ t: T * Math.pow(k / N, 0.6), x: 40 + r() * 1380, y: 40 + r() * 900, rot: (r() - 0.5) * 0.08, hot: k % 4 === 3, title: msgs[k % 8][0], sub: msgs[k % 8][1] }));
+})();
+const DRAW = {
+  noise(lt, a) {
+    // the pitch to keep trading: generic push notifications pile up, faster and faster, until the cut
+    const T = BAR * 2 - 0.25;
+    NOISE.forEach((n, k) => {
+      const u = lt - n.t; if (u < 0) return;
+      const pop = eout(u / 0.18), sc = 0.92 + 0.08 * pop, j = Math.sin(lt * 37 + k) * 2.2 * ramp(lt, T * 0.5, T);
+      ctx.save(); ctx.globalAlpha = a * pop;
+      ctx.translate(n.x + 230 + j, n.y + 48); ctx.rotate(n.rot); ctx.scale(sc, sc); ctx.translate(-230, -48);
+      ctx.shadowColor = "rgba(14,23,38,0.14)"; ctx.shadowBlur = 30; ctx.shadowOffsetY = 8;
+      ctx.fillStyle = "#fff"; ctx.beginPath(); ctx.roundRect(0, 0, 460, 96, 22); ctx.fill(); ctx.shadowColor = "transparent";
+      ctx.strokeStyle = rgba("line", 1); ctx.lineWidth = 1; ctx.stroke();
+      ctx.beginPath(); ctx.arc(46, 48, 20, 0, TAU); ctx.fillStyle = rgba(n.hot ? "down" : "river", 1); ctx.fill();
+      ctx.fillStyle = "#fff"; ctx.font = FONT(22, 700, "sans"); ctx.textAlign = "center"; ctx.textBaseline = "middle"; ctx.fillText("!", 46, 49);
+      ctx.textAlign = "left"; ctx.fillStyle = rgba("ink", 1); ctx.font = FONT(25, 700, "sans"); ctx.fillText(n.title, 84, 34);
+      ctx.fillStyle = rgba("ink3", 1); ctx.font = FONT(18, 500, "mono"); ctx.fillText(n.sub, 84, 66);
+      ctx.textAlign = "right"; ctx.font = FONT(15, 500, "mono"); ctx.fillText("now", 438, 30);
+      ctx.restore();
+    });
+  },
+  calm() {},
+  reveal() {},
+
+  edge(lt, a) {
+    // traders keep firing swaps into the pool; the pool drips fees into a wallet whose owner is doing nothing
+    ctx.globalAlpha = a;
+    const P = { x: 52, y: 30 }, Wc = { x: 76, y: 74 }, TR = [10, 26, 42, 58, 74, 90].map((y, i) => ({ x: 7 + (i % 2) * 5, y }));
+    TR.forEach((p) => { hex(p.x, p.y, 3.2); ctx.fillStyle = "#fff"; ctx.fill(); ctx.strokeStyle = rgba("ink2", 0.7); lw(0.22); ctx.stroke(); circ(p.x, p.y - 0.6, 0.9); ctx.fillStyle = rgba("ink2", 0.7); ctx.fill(); });
+    card(P.x - 14, P.y - 11, 28, 22);
+    ctx.globalAlpha = a; txt("POOL", P.x, P.y - 4.5, 2.2, rgba("ink", 1), "center", 700, "sans"); txt("PancakeSwap v3", P.x, P.y - 1, 1.5, rgba("ink3", 1), "center", 500);
+    const r = rng(17); let fees = 0, swaps = 0;
+    for (let i = 0; i < 70; i++) {
+      const t0 = 0.3 + i * 0.17 + r() * 0.08, from = TR[Math.floor(r() * TR.length)], u = (lt - t0) / 0.55;
+      if (u < 0) continue;
+      if (u < 1) { diamond(mix(from.x + 3, P.x - 14, ease(u)), mix(from.y, P.y + (r() - 0.5) * 10, ease(u)), 0.8); ctx.fillStyle = rgba("river", 0.85); ctx.fill(); continue; }
+      swaps++;
+      if (i % 2) continue;
+      const v = (u - 1) / 1.5;
+      if (v < 1) { const q = qb({ x: P.x, y: P.y + 11 }, { x: 72, y: 46 }, { x: Wc.x - 6 + (fees % 6) * 2.4, y: Wc.y + 7 }, ease(v)); coin(q.x, q.y, 0.85); }
+      else fees++;
+    }
+    txt(`${swaps} trades`, P.x, P.y + 4.6, 2.6, rgba("river", 1), "center", 700, "sans");
+    // the wallet: shares held, upside kept, owner offline
+    card(Wc.x - 20, Wc.y - 18, 40, 34);
+    ctx.globalAlpha = a;
+    txt("YOUR WALLET", Wc.x - 16.5, Wc.y - 13.5, 1.6, rgba("ink3", 1), "left", 600);
+    circ(Wc.x + 4.4, Wc.y - 13.6, 0.7); ctx.fillStyle = rgba("ink3", 1); ctx.fill(); txt("you: offline", Wc.x + 16.5, Wc.y - 13.5, 1.5, rgba("ink3", 1), "right", 500);
+    txt("tokenized stocks", Wc.x - 16.5, Wc.y - 8, 1.8, rgba("ink2", 1), "left", 500); txt("held", Wc.x + 16.5, Wc.y - 8, 1.8, rgba("ink", 1), "right", 700);
+    txt("stock's upside", Wc.x - 16.5, Wc.y - 3.4, 1.8, rgba("ink2", 1), "left", 500); txt("kept ✓", Wc.x + 16.5, Wc.y - 3.4, 1.8, rgba("up", 1), "right", 700);
+    txt("fees earned", Wc.x - 16.5, Wc.y + 1.8, 1.8, rgba("ink2", 1), "left", 500);
+    for (let c = 0; c < Math.min(fees, 12); c++) coin(Wc.x - 14 + c * 2.4, Wc.y + 7, 0.85);
+    if (fees > 12) txt(`+${fees - 12}`, Wc.x + 16.5, Wc.y + 7, 1.7, rgba("up", 1), "right", 700);
+    txt("effort: none", Wc.x - 16.5, Wc.y + 12, 1.6, rgba("ink3", 1), "left", 600);
+    ctx.globalAlpha = 1;
+  },
+
+  cta(lt, a) { riverWide(lt, a); },
+
+  clock(lt, a) {
+    // a week as a ring: NYSE sessions dark, the closed window in river blue; a hand sweeps the week
+    const cx = 50, cy = 40, R = 26;
+    const hourA = (h) => -Math.PI / 2 + (h / 168) * TAU; // week starts Mon 00:00 ET at the top
+    ctx.globalAlpha = a;
+    circ(cx, cy, R); ctx.strokeStyle = rgba("line", 1); lw(1.6); ctx.stroke();
+    for (let d = 0; d < 5; d++) { // Mon–Fri 9:30–16:00
+      ctx.beginPath(); ctx.arc(X(cx), Y(cy), R * U, hourA(d * 24 + 9.5), hourA(d * 24 + 16)); ctx.strokeStyle = rgba("ink", 0.8); lw(1.6); ctx.stroke();
+    }
+    const wk = eout(ramp(lt, 2, 4));
+    ctx.beginPath(); ctx.arc(X(cx), Y(cy), R * U, hourA(4 * 24 + 20), hourA(4 * 24 + 20 + 48 * wk)); ctx.strokeStyle = rgba("river", 0.9); lw(2.6); ctx.stroke();
+    const days = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
+    days.forEach((dn, d) => { const an = hourA(d * 24 + 12); txt(dn, cx + Math.cos(an) * (R + 5.5), cy + Math.sin(an) * (R + 5.5), 1.9, rgba(d >= 5 ? "river" : "ink2", 1), "center", 600); });
+    // the hand
+    const h = (lt / 20) * 168 * 1.0 + 40;
+    const an = hourA(h % 168);
+    seg(cx, cy, cx + Math.cos(an) * (R - 3), cy + Math.sin(an) * (R - 3)); ctx.strokeStyle = rgba("ink", 0.7); lw(0.35); ctx.stroke();
+    circ(cx, cy, 1); ctx.fillStyle = rgba("ink", 1); ctx.fill();
+    const hw = h % 168, inWin = hw >= 116 && hw < 164;
+    const st = inWin ? "market closed" : (hw % 24 >= 9.5 && hw % 24 < 16 && hw < 120 ? "market open" : "after hours");
+    rr(cx - 9, cy + 6.6, 18, 4.4, 2.2); ctx.fillStyle = "#fff"; ctx.fill();
+    txt(st, cx, cy + 8.8, 1.9, rgba(inWin ? "river" : "ink2", 1), "center", 700);
+    // price strips: choppy weekday vs sideways weekend
+    const pw = noise(3, 6), pe = noise(5, 6);
+    const draw = (x0, x1, f, amp, col, from) => {
+      ctx.beginPath();
+      const end = mix(x0, x1, eout(ramp(lt, from, from + 3)));
+      for (let x = x0; x <= end; x += 0.5) { const y = 84 + f(x / 4 + lt * 0.2) * amp; x === x0 ? ctx.moveTo(X(x), Y(y)) : ctx.lineTo(X(x), Y(y)); }
+      ctx.strokeStyle = col; lw(0.35); ctx.stroke();
+    };
+    draw(4, 46, (x) => pw(x) + Math.sin(x * 0.9) * 0.6, 3.6, rgba("ink", 0.75), 4.5);
+    draw(54, 96, pe, 1.1, rgba("river", 0.95), 6);
+    ctx.globalAlpha = 1;
+  },
+
+  band(lt, a) {
+    const lo = 38, hi = 62, mid = 50, x0 = 4, x1 = 96;
+    ctx.globalAlpha = a;
+    const k = eout(ramp(lt, 0, 1.2));
+    ctx.fillStyle = rgba("mist", 1); ctx.fillRect(X(x0), Y(mid - (mid - lo) * k), (x1 - x0) * U, (hi - lo) * k * U);
+    ctx.strokeStyle = rgba("river", 0.8); lw(0.25); ctx.setLineDash([1.2 * U, 0.8 * U]);
+    seg(x0, mid - (mid - lo) * k, x1, mid - (mid - lo) * k); ctx.stroke(); seg(x0, mid + (hi - mid) * k, x1, mid + (hi - mid) * k); ctx.stroke(); ctx.setLineDash([]);
+    const p = noise(21, 6), at = (x) => mid + p(x / 7 - lt * 0.9) * 6.5;
+    ctx.beginPath(); for (let x = x0; x <= 70; x += 0.5) x === x0 ? ctx.moveTo(X(x), Y(at(x))) : ctx.lineTo(X(x), Y(at(x)));
+    ctx.strokeStyle = rgba("ink", 0.85); lw(0.4); ctx.stroke();
+    const head = { x: 70, y: at(70) };
+    circ(head.x, head.y, 1.1); ctx.fillStyle = rgba("ink", 1); ctx.fill();
+    // swaps arrive at the price; each pays a coin that flies to the fee counter
+    const r = rng(9); let fees = 0;
+    for (let i = 0; i < 26; i++) {
+      const t0 = 1.5 + i * 0.6 + r() * 0.3, side = r() > 0.5 ? 1 : -1, sx = 72 + r() * 24;
+      const u = (lt - t0) / 0.9;
+      if (u > 1) fees++;
+      if (u < 0 || u > 2) continue;
+      if (u <= 1) { const y = mix(side > 0 ? 6 : 94, head.y, ease(u)), x = mix(sx, head.x, ease(u)); circ(x, y, 0.55); ctx.fillStyle = rgba("ink2", 0.8); ctx.fill(); }
+      else { const v = ease(u - 1), q = qb(head, { x: 88, y: 70 }, { x: 92, y: 83 }, v); circ(q.x, q.y, 0.75); ctx.fillStyle = rgba("up", 1 - v * 0.4); ctx.fill(); }
+    }
+    txt(`${fees} swaps × 0.25%`, 96, 83, 3.4, rgba("up", 1), "right", 600, "sans");
+    ctx.globalAlpha = 1;
+  },
+
+  ivl(lt, a) {
+    ctx.globalAlpha = a;
+    const traces = [noise(31, 5), noise(32, 5), noise(33, 5), noise(34, 5)];
+    const base = [20, 34, 48, 62], x0 = 6, x1 = 58;
+    traces.forEach((f, i) => {
+      const k = eout(ramp(lt, 0.3 + i * 0.5, 2 + i * 0.5));
+      const y0 = base[i];
+      const toMid = ease(ramp(lt, 5, 8)); // the traces collapse onto one axis once rebased
+      ctx.beginPath();
+      for (let x = x0; x <= mix(x0, x1, k); x += 0.5) {
+        const y = mix(y0, 47, toMid) + f(x / 6) * 3.4;
+        x === x0 ? ctx.moveTo(X(x), Y(y)) : ctx.lineTo(X(x), Y(y));
+      }
+      ctx.strokeStyle = rgba("ink", 0.25 + 0.15 * i); lw(0.3); ctx.stroke();
+      circ(x0, mix(y0, 47, toMid) + f(x0 / 6) * 3.4, 0.7); ctx.fillStyle = rgba("ink", 0.6); ctx.fill();
+      txt(`W−${4 - i}`, x0 - 1.5, mix(y0, 47, toMid), 1.6, rgba("ink3", 1 - toMid), "right", 600);
+    });
+    // distribution of deviations, drawn as a sideways histogram
+    const hk = eout(ramp(lt, 3, 5.5));
+    const bins = 15;
+    for (let b = 0; b < bins; b++) {
+      const y = 47 + (b - (bins - 1) / 2) * 2.4;
+      const z = (b - (bins - 1) / 2) / 3.2, w = Math.exp(-z * z / 2) * 22 * hk;
+      ctx.fillStyle = rgba("river", 0.18 + 0.5 * Math.exp(-z * z / 2)); ctx.fillRect(X(64), Y(y - 1), w * U, 2 * U);
+    }
+    // μ and ±2σ: brackets that then extend into the band across the stage
+    const sk = eout(ramp(lt, 6, 8)), ext = eout(ramp(lt, 9, 12));
+    if (sk > 0) {
+      const s2 = 2 * 3.2 * 2.4 * 0.62;
+      ctx.strokeStyle = rgba("river", sk); lw(0.3);
+      seg(62, 47, 90, 47); ctx.stroke();
+      txt("μ", 92, 47, 2.4, rgba("river", sk), "left", 700, "sans");
+      for (const s of [-1, 1]) {
+        seg(mix(62, 4, ext), 47 + s * s2, 90, 47 + s * s2); ctx.setLineDash([1 * U, 0.8 * U]); ctx.stroke(); ctx.setLineDash([]);
+        txt(s < 0 ? "+2σ" : "−2σ", 92, 47 + s * s2, 2, rgba("river", sk), "left", 700);
+      }
+      if (ext > 0) { ctx.fillStyle = rgba("river", 0.07 * ext); ctx.fillRect(X(mix(62, 4, ext)), Y(47 - s2), (90 - mix(62, 4, ext)) * U, 2 * s2 * U); }
+    }
+    ctx.globalAlpha = 1;
+  },
+
+  cycle(lt, a) {
+    ctx.globalAlpha = a;
+    // timeline: Fri 8 pm ET → Sun 8 pm ET (48 h); enter at +1 h, exit at −2 h
+    const tx0 = 8, tx1 = 92, ty = 80, H = (h) => mix(tx0, tx1, h / 48);
+    seg(tx0, ty, tx1, ty); ctx.strokeStyle = rgba("ink3", 0.6); lw(0.2); ctx.stroke();
+    [["Fri 8 pm ET", 0], ["Sat", 4 + 24 - 20 - 4 + 4], ["Sun", 28], ["Sun 8 pm ET", 48]].forEach(([s, h]) => {
+      seg(H(h), ty - 1, H(h), ty + 1); ctx.stroke(); txt(s, H(h), ty + 4, 1.7, rgba("ink3", 1), "center", 500);
+    });
+    const ph = clamp((lt - 1.5) / 18) * 48; // playhead through the window
+    ctx.fillStyle = rgba("river", 0.12); ctx.fillRect(X(H(1)), Y(ty - 2.2), (H(Math.min(ph, 46)) - H(1)) * U * (ph > 1 ? 1 : 0), 4.4 * U);
+    for (const [h, c] of [[1, "river"], [46, "river"]]) { diamond(H(h), ty, 1.2); ctx.fillStyle = rgba(c, 1); ctx.fill(); }
+    seg(H(ph), ty - 4, H(ph), ty + 2); ctx.strokeStyle = rgba("ink", 0.8); lw(0.3); ctx.stroke();
+    // wallet and position
+    const inPool = ph >= 1 && ph < 46, done = ph >= 46;
+    card(6, 18, 30, 30, 1); card(64, 18, 30, 30, 1);
+    txt("WALLET", 21, 22, 1.7, rgba("ink3", 1), "center", 600); txt("POSITION", 79, 22, 1.7, rgba("ink3", 1), "center", 600);
+    seg(64, 40, 94, 40); ctx.strokeStyle = rgba("river", 0.25); lw(0.2); ctx.stroke(); // the band inside the position
+    seg(64, 28, 94, 28); ctx.stroke();
+    const move = (u, from, to) => ({ x: mix(from.x, to.x, ease(u)), y: mix(from.y, to.y, ease(u)) - Math.sin(Math.PI * clamp(u)) * 10 });
+    const W1 = { x: 15, y: 33 }, W2 = { x: 27, y: 33 }, P1 = { x: 73, y: 33 }, P2 = { x: 85, y: 33 };
+    const uin = ramp(ph, 1, 3.5), uout = ramp(ph, 46, 47.9);
+    const tok = (p, label, col) => { circ(p.x, p.y, 3.4); ctx.fillStyle = rgba(col, 1); ctx.fill(); txt(label, p.x, p.y + 0.1, 1.55, "#fff", "center", 700); };
+    const pos = (w, p) => (done ? move(uout, p, w) : move(uin, w, p));
+    tok(pos(W1, P1), "NVDAB", "river"); tok(pos(W2, P2), "USDT", "ink2");
+    // fees accrue while in range
+    const fee = inPool ? (ph - 1) / 45 : done ? 1 : 0;
+    if (fee > 0) {
+      const f = done ? move(uout, { x: 79, y: 44 }, { x: 21, y: 44 }) : { x: 79, y: 44 };
+      // no number here: one weekend's share would read as an APR far above the claim; coins just accrue
+      txt("+ fees", f.x - 4, f.y, 2.1, rgba("up", 1), "center", 700);
+      for (let c = 0; c < Math.ceil(fee * 5); c++) { circ(f.x + 1.5 + c * 1.9, f.y, 0.75); ctx.fillStyle = rgba("up", 1); ctx.fill(); }
+    }
+    ctx.globalAlpha = 1;
+  },
+
+  safe(lt, a) {
+    ctx.globalAlpha = a;
+    const W = { x: 18, y: 54 }, P = { x: 82, y: 54 }, A = { x: 50, y: 20 }, S = { x: 50, y: 54 }, BAD = { x: 50, y: 88 };
+    // agent and its mandate
+    hex(A.x, A.y, 6.5); ctx.fillStyle = "#fff"; ctx.fill(); ctx.strokeStyle = rgba("river", 1); lw(0.35); ctx.stroke();
+    txt("agent", A.x, A.y, 2, rgba("river", 1), "center", 700);
+    // dashed signing line agent → wallet
+    ctx.setLineDash([0.9 * U, 0.9 * U]); ctx.lineDashOffset = -lt * 2 * U;
+    ctx.beginPath(); ctx.moveTo(X(A.x - 4), Y(A.y + 4)); ctx.quadraticCurveTo(X(26), Y(30), X(W.x + 2), Y(W.y - 7)); ctx.strokeStyle = rgba("river", 0.7); lw(0.22); ctx.stroke(); ctx.setLineDash([]);
+    txt("signs", 28, 33, 1.7, rgba("river", 1), "center", 600);
+    // wallet and pool
+    card(W.x - 10, W.y - 7, 20, 14); txt("your wallet", W.x, W.y, 2, rgba("ink", 1), "center", 600, "sans");
+    card(P.x - 10, P.y - 7, 20, 14); txt("pool", P.x, P.y - 1.6, 2, rgba("ink", 1), "center", 600, "sans"); txt("PancakeSwap v3", P.x, P.y + 2.2, 1.45, rgba("ink3", 1), "center", 500);
+    seg(W.x + 10, W.y, P.x - 10, P.y); ctx.strokeStyle = rgba("line", 1); lw(0.6); ctx.stroke();
+    // the shield: Binance simulate
+    const sk = eout(ramp(lt, 3.5, 5));
+    ctx.beginPath(); const sh = (dx, dy) => [X(S.x + dx), Y(S.y + dy)];
+    ctx.moveTo(...sh(0, -6 * sk)); ctx.lineTo(...sh(4.6 * sk, -4 * sk)); ctx.lineTo(...sh(4.6 * sk, 1 * sk)); ctx.quadraticCurveTo(...sh(4 * sk, 5 * sk), ...sh(0, 7 * sk)); ctx.quadraticCurveTo(...sh(-4 * sk, 5 * sk), ...sh(-4.6 * sk, 1 * sk)); ctx.lineTo(...sh(-4.6 * sk, -4 * sk)); ctx.closePath();
+    ctx.fillStyle = "#fff"; ctx.fill(); ctx.strokeStyle = rgba("river", sk); lw(0.35); ctx.stroke();
+    if (sk > 0.5) txt("sim", S.x, S.y + 0.4, 1.8, rgba("river", 1), "center", 700);
+    // legal packets: wallet → pool → wallet, each passing the shield with a green tick
+    for (let i = 0; i < 6; i++) {
+      const t0 = 5 + i * 2.2, u = (lt - t0) / 1.6; if (u < 0 || u > 1) continue;
+      const fwd = i % 2 === 0, from = fwd ? W : P, to = fwd ? P : W;
+      const x = mix(from.x + (fwd ? 10 : -10), to.x + (fwd ? -10 : 10), ease(u));
+      diamond(x, W.y, 1.1); ctx.fillStyle = rgba("river", 1); ctx.fill();
+      if (Math.abs(x - S.x) < 3) { circ(S.x, S.y - 9, 1.6); ctx.fillStyle = rgba("up", 1); ctx.fill(); txt("✓", S.x, S.y - 8.9, 2, "#fff", "center", 700, "sans"); }
+    }
+    // a rogue call tries to send tokens elsewhere; the simulation shows it and River refuses
+    txt("0x…beef", BAD.x, BAD.y + 4.5, 1.7, rgba("down", 0.9), "center", 600);
+    circ(BAD.x, BAD.y, 2); ctx.strokeStyle = rgba("down", 0.6); lw(0.25); ctx.stroke();
+    for (const t0 of [9, 15.5]) {
+      const u = (lt - t0) / 1.4; if (u < 0 || u > 1.6) continue;
+      const v = Math.min(u, 0.55) / 1, q = qb({ x: W.x + 6, y: W.y + 7 }, { x: 34, y: 82 }, BAD, ease(v));
+      diamond(q.x, q.y, 1.1); ctx.fillStyle = rgba("down", 1); ctx.fill();
+      if (u > 0.55) { const s = 2.2; ctx.strokeStyle = rgba("down", clamp(1.6 - u)); lw(0.5); seg(q.x - s, q.y - s, q.x + s, q.y + s); ctx.stroke(); seg(q.x - s, q.y + s, q.x + s, q.y - s); ctx.stroke(); }
+    }
+    ctx.globalAlpha = 1;
+  },
+
+  term(lt, a) {
+    ctx.globalAlpha = a;
+    const A1 = { x: 22, y: 26 }, A2 = { x: 22, y: 74 }, AG = { x: 58, y: 50 }, PL = { x: 86, y: 50 };
+    const node = (p, label, k) => { card(p.x - 9, p.y - 5, 18, 10, k); txt(label, p.x, p.y, 2, rgba("ink", k), "center", 600, "sans"); };
+    node(A1, "Binance", eout(ramp(lt, 0.5, 1.5))); node(A2, "Any wallet", eout(ramp(lt, 1.8, 2.8)));
+    for (const [p, t0] of [[A1, 1.5], [A2, 2.8]]) {
+      const k = eout(ramp(lt, t0, t0 + 1.2));
+      ctx.beginPath(); const c = { x: 42, y: p.y }; ctx.moveTo(X(p.x + 9), Y(p.y));
+      for (let s = 0; s <= 1.0001; s += 0.05) { const q = qb({ x: p.x + 9, y: p.y }, c, { x: AG.x - 6, y: AG.y }, s * k); ctx.lineTo(X(q.x), Y(q.y)); }
+      ctx.strokeStyle = rgba("river", 0.6); lw(0.3); ctx.stroke();
+      for (let i = 0; i < 4; i++) { const u = ((lt * 0.35 + i / 4) % 1); if (k < 1) break; const q = qb({ x: p.x + 9, y: p.y }, c, { x: AG.x - 6, y: AG.y }, u); circ(q.x, q.y, 0.5); ctx.fillStyle = rgba("river", 1); ctx.fill(); }
+    }
+    hex(AG.x, AG.y, 6.5); ctx.fillStyle = "#fff"; ctx.fill(); ctx.strokeStyle = rgba("river", 1); lw(0.35); ctx.stroke(); txt("agent", AG.x, AG.y, 2, rgba("river", 1), "center", 700);
+    seg(AG.x + 6.5, AG.y, PL.x - 7, PL.y); ctx.strokeStyle = rgba("river", 0.6); lw(0.3); ctx.stroke();
+    card(PL.x - 7, PL.y - 5, 14, 10); txt("pool", PL.x, PL.y, 2, rgba("ink", 1), "center", 600, "sans");
+    ctx.globalAlpha = 1;
+  },
+
+  returns(lt, a) {
+    ctx.globalAlpha = a;
+    const y0 = 86, top = 14, max = 70, Yv = (v) => y0 - ((y0 - top) * v) / max;
+    // axis + gridlines
+    for (const v of [0, 10, 20, 30, 40, 50, 60, 70]) { seg(10, Yv(v), 94, Yv(v)); ctx.strokeStyle = rgba("line", 1); lw(0.1); ctx.stroke(); txt(`${v}%`, 8, Yv(v), 1.6, rgba("ink3", 1), "right", 500); }
+    // the claim zone 8–25%
+    const ck = eout(ramp(lt, 6.5, 8));
+    ctx.fillStyle = rgba("river", 0.1 * ck); ctx.fillRect(X(10), Y(Yv(25)), 84 * U * ck, (Yv(8) - Yv(25)) * U);
+    const groups = [["NVDAB", [67.7, 29.3, 9.7]], ["TSLAB", [39.6, 18.8, 8.1]]];
+    const names = ["liquidity as today", "×2 other LPs", "×4 other LPs"];
+    groups.forEach(([g, vals], gi) => {
+      const gx = 16 + gi * 40;
+      vals.forEach((v, i) => {
+        const k = eout(ramp(lt, 1 + gi * 0.6 + i * 0.35, 3 + gi * 0.6 + i * 0.35));
+        const x = gx + i * 11, h = v * k;
+        ctx.fillStyle = rgba(i === 0 ? "ink" : "river", i === 0 ? 0.75 : i === 1 ? 0.75 : 0.45);
+        rr(x, Yv(h), 8, y0 - Yv(h), 0.6); ctx.fill();
+        if (k > 0.95) txt(`${v.toFixed(1)}%`, x + 4, Yv(v) - 2.4, 1.9, rgba("ink", 1), "center", 700);
+      });
+      txt(g, gx + 15, y0 + 4.5, 2.4, rgba("ink", 1), "center", 700, "sans");
+    });
+    names.forEach((n, i) => { const x = 16 + i * 26; ctx.fillStyle = rgba(i === 0 ? "ink" : "river", i === 0 ? 0.75 : i === 1 ? 0.75 : 0.45); ctx.fillRect(X(x), Y(96), 2 * U, 2 * U); txt(n, x + 3, 97, 1.6, rgba("ink2", 1), "left", 500); });
+    ctx.globalAlpha = 1;
+  },
+
+  agent(lt, a) {
+    ctx.globalAlpha = a;
+    // one exchange (the real first sale): another agent pays $0.10 over x402, River answers with the plan
+    const O = { x: 20, y: 46 }, R = { x: 76, y: 46 }, top = { x: 48, y: 26 }, bot = { x: 48, y: 66 };
+    const ok = eout(ramp(lt, 0.2, 0.9));
+    hex(O.x, O.y, 7 * ok); ctx.fillStyle = "#fff"; ctx.fill(); ctx.strokeStyle = rgba("ink2", 0.8); lw(0.3); ctx.stroke();
+    if (ok > 0.9) { txt("another", O.x, O.y - 1.3, 1.7, rgba("ink2", 1), "center", 600); txt("agent", O.x, O.y + 1.5, 1.7, rgba("ink2", 1), "center", 600); }
+    const pulse = 1 + 0.04 * Math.sin(lt * 2.4);
+    hex(R.x, R.y, 9 * pulse); ctx.fillStyle = "#fff"; ctx.fill(); ctx.strokeStyle = rgba("river", 1); lw(0.45); ctx.stroke();
+    txt("River", R.x, R.y - 1, 3, rgba("river", 1), "center", 700, "sans");
+    txt("ERC-8004 #365864", R.x, R.y + 2.8, 1.45, rgba("ink3", 1), "center", 600);
+    ctx.setLineDash([0.7 * U, 0.9 * U]); ctx.strokeStyle = rgba("ink3", 0.5 * ok); lw(0.18);
+    ctx.beginPath(); ctx.moveTo(X(O.x + 6), Y(O.y - 3)); ctx.quadraticCurveTo(X(top.x), Y(top.y), X(R.x - 8), Y(R.y - 3)); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(X(R.x - 8), Y(R.y + 3)); ctx.quadraticCurveTo(X(bot.x), Y(bot.y), X(O.x + 6), Y(O.y + 3)); ctx.stroke(); ctx.setLineDash([]);
+    txt("pays $0.10 · x402", top.x, top.y + 3.6, 1.8, rgba("up", ok), "center", 700);
+    txt("gets the weekend plan", bot.x, bot.y - 3.4, 1.8, rgba("river", ok), "center", 700);
+    let paid = 0;
+    for (const t0 of [1.2]) {
+      const u1 = ramp(lt, t0, t0 + 1.6), u2 = ramp(lt, t0 + 2, t0 + 3.6);
+      if (u1 >= 1) paid++;
+      if (u1 > 0 && u1 < 1) { const q = qb({ x: O.x + 6, y: O.y - 3 }, top, { x: R.x - 8, y: R.y - 3 }, ease(u1)); coin(q.x, q.y, 1.3); txt("$", q.x, q.y + 0.1, 1.5, "#fff", "center", 700, "sans"); }
+      if (u2 > 0 && u2 < 1) { const q = qb({ x: R.x - 8, y: R.y + 3 }, bot, { x: O.x + 6, y: O.y + 3 }, ease(u2)); rr(q.x - 1.8, q.y - 2.2, 3.6, 4.4, 0.5); ctx.fillStyle = rgba("river", 1); ctx.fill(); }
+    }
+    // River's treasury
+    card(58, 72, 34, 15);
+    txt("RIVER'S TREASURY", 61, 76, 1.5, rgba("ink3", 1), "left", 600);
+    txt(`$${(paid * 0.1).toFixed(2)}`, 61, 81.8, 3.6, rgba(paid ? "up" : "ink", 1), "left", 600, "sans");
+    txt("pays its own gas", 89, 80.4, 1.45, rgba("ink3", 1), "right", 500);
+    if (paid) txt("1st sale · 7 Oct", 89, 83.2, 1.45, rgba("ink3", 1), "right", 500);
+    ctx.globalAlpha = 1;
+  },
+};
+
+// label anchors (where each leader line lands), per scene, in stage units
+const ringAt = (h, cx = 50, cy = 40, R = 26) => { const an = -Math.PI / 2 + (h / 168) * TAU; return [cx + Math.cos(an) * R, cy + Math.sin(an) * R]; };
+const ANCHOR = {
+  "edge.tr": () => [6, 12], "edge.pool": () => [62, 24],
+  "term.a": () => [13, 26], "term.b": () => [13, 74], "term.same": () => [60, 44],
+  "clock.open": () => ringAt(24 + 12.75), "clock.win": () => ringAt(4 * 24 + 20 + 30), "clock.wk": () => [16, 84], "clock.we": () => [84, 84],
+  "band.band": () => [12, 38], "band.swap": () => [82, 24], "band.fees": () => [93, 86.5],
+  "ivl.past": () => [14, 20], "ivl.dist": () => [74, 40], "ivl.sig": () => [80, 57.5], "ivl.ivl": () => [20, 47],
+  "cycle.w": () => [10, 20], "cycle.p": () => [90, 20], "cycle.in": () => [9.75, 80], "cycle.out": () => [88.5, 80], "cycle.back": () => [30, 44],
+  "safe.agent": () => [55, 16], "safe.mand": () => [44, 16], "safe.sim": () => [46, 58], "safe.ok": () => [72, 54], "safe.no": () => [52, 88],
+  "returns.claim": () => [92, 60], "returns.src": () => [12, 14],
+};
+
+// ── composition: crossfade between beats, copy steps, builds, labels and leaders ──
+const XF = 0.9; // crossfade seconds
+const frameEl = document.getElementById("frame"), brandEl = document.getElementById("brand");
+function sceneAt(t) { let i = SCENES.findIndex((s) => t < s.t0 + s.d); return i < 0 ? SCENES.length - 1 : i; }
+
+function renderAt(t) {
+  t = clamp(t, 0, TOTAL - 1e-3);
+  const i = sceneAt(t), s = SCENES[i], lt = t - s.t0, sp = (sc) => sc.speed ?? 1;
+  drawBackdrop(s.layout === "full");
+  // stage: the current beat, plus the previous one fading out at the start
+  const fadeIn = i === 0 || s.cut ? 1 : ease(lt / XF);
+  if (i > 0 && !s.cut && lt < XF) { const p = SCENES[i - 1]; DRAW[p.id]((t - p.t0) * sp(p), 1 - fadeIn); }
+  DRAW[s.id](lt * sp(s), fadeIn);
+  // copy: each step rises in at its time and leaves just before the next
+  for (const [j, sc] of SCENES.entries()) {
+    const l = t - sc.t0, last = j === SCENES.length - 1;
+    sc.els.forEach((st, k) => {
+      const live = (j === i || (j === i - 1 && !s.cut && lt < 0.6)) && l >= st.at - 0.01;
+      if (!live) { st.e.style.opacity = "0"; return; }
+      const inA = eout(ramp(l, st.at + 0.15, st.at + 1.0));
+      const outA = last && k === sc.els.length - 1 ? 1 : 1 - ramp(l, st.end - 0.55, st.end - 0.05);
+      st.e.style.opacity = String(clamp(Math.min(inA, outA)));
+      st.e.style.transform = `translateY(${(1 - inA) * 22}px)`;
+      for (const b of st.builds) { const k2 = eout(ramp(l, b.at, b.at + 0.7)); b.n.style.opacity = String(k2); b.n.style.transform = `translateY(${(1 - k2) * 14}px)`; }
+    });
+  }
+  // labels with leader lines
+  const fr = frameEl.getBoundingClientRect(), scale = fr.width / 1920;
+  for (const [j, sc] of SCENES.entries()) {
+    const l = t - sc.t0;
+    for (const lb of sc.lbs) {
+      const a = j === i ? eout(ramp(l, lb.at, lb.at + 0.5)) * (1 - ramp(l, sc.d - 0.4, sc.d - 0.05)) : 0;
+      lb.e.style.opacity = String(a);
+      if (a <= 0.01) continue;
+      lb.e.style.left = lb.align === "l" ? `${X(lb.x)}px` : "";
+      lb.e.style.right = lb.align === "r" ? `${1920 - X(lb.x)}px` : "";
+      lb.e.style.top = `${Y(lb.y)}px`;
+      const r = lb.e.getBoundingClientRect();
+      const box = { l: (r.left - fr.left) / scale, r: (r.right - fr.left) / scale, t: (r.top - fr.top) / scale, b: (r.bottom - fr.top) / scale };
+      const an = ANCHOR[`${sc.id}.${lb.id}`];
+      if (!an) continue;
+      const [ax, ay] = an(l * sp(sc)), tx = X(ax), ty = Y(ay);
+      const fx = clamp(tx, box.l - 8, box.r + 8), fy = clamp(ty, box.t - 4, box.b + 4);
+      ctx.globalAlpha = a; ctx.strokeStyle = rgba("ink3", 0.7); ctx.lineWidth = 1.2;
+      ctx.beginPath(); ctx.moveTo(fx, fy); ctx.lineTo(tx, ty); ctx.stroke();
+      ctx.fillStyle = rgba("ink2", 0.9); ctx.beginPath(); ctx.arc(tx, ty, 3.2, 0, TAU); ctx.fill(); ctx.globalAlpha = 1;
+    }
+  }
+  brandEl.style.opacity = String(s.layout === "full" ? 0 : 1);
+}
+
+window.FILM = { total: TOTAL, renderAt, ready: document.fonts.ready };
+
+// preview: plays in real time unless a renderer drives it (?render)
+const qs = new URLSearchParams(location.search);
+if (!qs.has("render")) {
+  const fit = () => { const k = Math.min(innerWidth / 1920, innerHeight / 1080); frameEl.style.transform = `scale(${k})`; };
+  addEventListener("resize", fit); fit();
+  let start = performance.now() - Number(qs.get("t") || 0) * 1000, paused = false, pausedAt = 0;
+  addEventListener("keydown", (e) => { if (e.code === "Space") { paused = !paused; if (paused) pausedAt = performance.now(); else start += performance.now() - pausedAt; } });
+  document.fonts.ready.then(() => { const loop = (now) => { if (!paused) renderAt(((now - start) / 1000) % TOTAL); requestAnimationFrame(loop); }; requestAnimationFrame(loop); });
+}
+</script>
+</body>
+</html>

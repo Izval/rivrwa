@@ -1,0 +1,21 @@
+{
+  "name": "@rivrwa/agent-worker",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "wrangler dev",
+    "deploy": "wrangler deploy",
+    "test": "node --test \"test/**/*.test.ts\"",
+    "typecheck": "tsc --noEmit -p ."
+  },
+  "dependencies": {
+    "@altananetwork/sdk": "^0.9.0",
+    "@cloudflare/containers": "^0.3.7",
+    "viem": "^2.57.1"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "^4",
+    "wrangler": "^4.143.0"
+  }
+}

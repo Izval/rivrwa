@@ -1,0 +1,14 @@
+{
+  "name": "rivrwa",
+  "private": true,
+  "type": "module",
+  "workspaces": ["packages/*", "workers/*", "agent", "app"],
+  "scripts": {
+    "test": "npm test --workspaces --if-present",
+    "typecheck": "npm run typecheck --workspaces --if-present"
+  },
+  "devDependencies": {
+    "@types/node": "^24",
+    "typescript": "^5.9.3"
+  }
+}

@@ -1,0 +1,13 @@
+.env*
+!.env.example
+node_modules/
+.dev.vars
+*.secret.*
+.wrangler/
+agent/state/
+agent/mandates/*.json
+!agent/mandates/*.example.json
+
+# Internal working notes, kept local
+CLAUDE.md
+docs/roadmap.md

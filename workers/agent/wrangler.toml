@@ -1,0 +1,47 @@
+# River agent — the event-driven cycle runner. A cron fires every 5 minutes; outside a closed window a tick is a
+# pure clock check. Flow A (Binance Agentic Wallet) runs `baw` in a Container started on demand, one instance
+# per user; nothing runs between events. Private: reached only through the app's service binding.
+name = "rivrwa-agent"
+main = "src/index.ts"
+compatibility_date = "2026-09-01"
+compatibility_flags = ["nodejs_compat"]
+workers_dev = false
+
+[triggers]
+crons = ["*/5 * * * *"]
+
+# Create once: `wrangler d1 create rivrwa` and paste the id; then `wrangler d1 migrations apply rivrwa --remote`.
+[[d1_databases]]
+binding = "DB"
+database_name = "rivrwa"
+database_id = "d6fb9463-0630-4e25-9805-c811dfc96e62"
+migrations_dir = "migrations"
+
+# The live asset registry, written by the API's discovery cron (same namespace as rivrwa-api's RIVER_KV).
+[[kv_namespaces]]
+binding = "RIVER_KV"
+id = "51e6db676f0848a0b15145606a5ea7d8"
+
+[[containers]]
+class_name = "BawContainer"
+image = "../../containers/baw/Dockerfile"
+max_instances = 20
+
+[[durable_objects.bindings]]
+name = "BAW"
+class_name = "BawContainer"
+
+[[migrations]]
+tag = "v1"
+new_sqlite_classes = ["BawContainer"]
+
+[vars]
+TELEGRAM_BOT = ""
+# Where renewal links point (the app Worker).
+APP_URL = "https://rivrwa.com"
+
+# Secrets (never in this file):
+#   wrangler secret put RIVER_MASTER_KEY       # 32 random bytes, base64: encrypts baw sessions and Altana keys
+#   wrangler secret put INTERNAL_KEY           # shared with the app worker
+#   wrangler secret put TELEGRAM_BOT_TOKEN
+#   wrangler secret put TELEGRAM_WEBHOOK_SECRET

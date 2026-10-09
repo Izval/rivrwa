@@ -1,0 +1,40 @@
+# River public API — Cloudflare Worker at api.rivrwa.com (workers.dev stays as a fallback).
+name = "rivrwa-api"
+main = "src/index.ts"
+compatibility_date = "2026-09-01"
+workers_dev = true
+routes = [{ pattern = "api.rivrwa.com", custom_domain = true }]
+
+# Signal and stock-catalog cache.
+# `wrangler dev` simulates KV locally without ids.
+[[kv_namespaces]]
+binding = "RIVER_KV"
+id = "51e6db676f0848a0b15145606a5ea7d8"
+
+# Every 15 minutes: refresh the catalog and every enabled asset's signal. At 7/22/37/52: one discovery step
+# (a few stocks through the automatic Gate 0; src/discover.ts). Keep DISCOVERY_CRON in src/index.ts in sync.
+[triggers]
+crons = ["*/15 * * * *", "7-59/15 * * * *"]
+
+# The gate replays every past window of a stock three times; give the discovery step room.
+[limits]
+cpu_ms = 120000
+
+[vars]
+ALLOWED_ORIGIN = "*"
+# River's agent wallet: owns the ERC-8004 identity and receives the x402 payments for /v1/paid/plan and MCP plan_cycle.
+# Shared with the IVL agent, which already owns an ERC-8004 id on BSC mainnet; River registers its own id from it.
+AGENT_WALLET = "0x6D19d43fC2cd226B135ED5f9F82b366AC864b703"
+# River's ERC-8004 id, minted 2026-10-07 by tx 0x9e91a4d4…9dad (scripts/register-agent.ts).
+AGENT_ID = "365864"
+
+# Secrets (never in this file):
+#   wrangler secret put BINANCE_WEB3_API_KEY
+#   wrangler secret put BINANCE_WEB3_SECRET_KEY
+#   wrangler secret put ADMIN_KEY               # POST /v1/discover
+
+# Outbound calls to Binance and GeckoTerminal go through the agent's baw container (see workers/agent/src/egress.ts).
+[[durable_objects.bindings]]
+name = "BAW"
+class_name = "BawContainer"
+script_name = "rivrwa-agent"

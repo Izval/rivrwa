@@ -1,0 +1,8 @@
+{
+  "name": "rivrwa-video",
+  "private": true,
+  "type": "module",
+  "description": "River's demo film: film.html rendered frame by frame to MP4 (render.mjs). Not an npm workspace.",
+  "scripts": { "render": "node render.mjs" },
+  "devDependencies": { "playwright-core": "1.58.0" }
+}

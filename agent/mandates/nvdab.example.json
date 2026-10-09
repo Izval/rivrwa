@@ -1,0 +1,13 @@
+{
+  "owner": "0x0000000000000000000000000000000000000000",
+  "asset": "NVDAB",
+  "signer": "agentic_wallet",
+  "allocation": 1,
+  "maxHalfWidth": 0.05,
+  "exitOnDrift": 0.03,
+  "skipEvents": true,
+  "events": ["2026-11-18T21:00:00Z"],
+  "restoreShares": false,
+  "expiresAt": "2026-12-31T00:00:00Z",
+  "slippageBps": 100
+}

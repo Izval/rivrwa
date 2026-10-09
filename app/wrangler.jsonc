@@ -1,0 +1,27 @@
+// rivrwa — River's web UI. It is the only public door to the agent: it authenticates people with a signed
+// cookie and calls rivrwa-agent through a service binding with INTERNAL_KEY. The public API (signal, backtest)
+// is reached the same way, with the URL as a fallback for local dev.
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "rivrwa",
+  "main": "./workers/app.ts",
+  "compatibility_date": "2026-09-01",
+  "compatibility_flags": ["nodejs_compat"],
+  // rivrwa.com is the public URL (www redirects to it in workers/app.ts); workers.dev stays as a fallback.
+  "routes": [
+    { "pattern": "rivrwa.com", "custom_domain": true },
+    { "pattern": "www.rivrwa.com", "custom_domain": true }
+  ],
+  "workers_dev": true,
+  "observability": { "enabled": true },
+  "services": [
+    { "binding": "AGENT", "service": "rivrwa-agent" },
+    { "binding": "API", "service": "rivrwa-api" }
+  ],
+  "vars": {
+    // Fallbacks when a binding is unreachable (local dev without the dev registry). Override in .dev.vars.
+    "AGENT_URL": "",
+    "API_URL": "https://api.rivrwa.com"
+  }
+  // Secrets (wrangler secret put): INTERNAL_KEY (same value as rivrwa-agent), SESSION_SECRET.
+}

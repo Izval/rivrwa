@@ -1,0 +1,152 @@
+@import "tailwindcss";
+
+/* app.css — River's design tokens. Light only, "porcelain + river blue": a quiet porcelain page, frosted glass for
+ * the large surfaces, ink for text, and one blue that means "the river" (the closed window, the band, the primary
+ * action). Green and red are reserved for data and always travel with a ▲/▼ sign. Tokens live on :root so a dark
+ * theme can be added later by redefining them; @theme exposes them to Tailwind (bg-surface, text-ink-2, …). */
+
+@theme {
+  --font-sans: "Instrument Sans", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, "SF Mono", Menlo, monospace;
+
+  --color-bg: var(--bg);
+  --color-surface: var(--surface);
+  --color-solid: var(--solid);
+  --color-line: var(--line);
+  --color-ink: var(--ink);
+  --color-ink-2: var(--ink-2);
+  --color-ink-3: var(--ink-3);
+  --color-river: var(--river);
+  --color-river-deep: var(--river-deep);
+  --color-river-mist: var(--river-mist);
+  --color-up: var(--up);
+  --color-down: var(--down);
+  --color-warn: var(--warn);
+
+  --radius-control: 12px;
+  --radius-panel: 20px;
+}
+
+:root {
+  --bg: #f7f8fa;
+  --solid: #ffffff;
+  --surface: rgb(255 255 255 / 0.62);
+  --line: #e2e6ec;
+  --ink: #0e1726;
+  --ink-2: #4f5a6d;
+  --ink-3: #8a93a3;
+  --river: #1f5bff;
+  --river-deep: #1646cc;
+  --river-mist: #e8eeff;
+  --up: #0e9f6e;
+  --down: #d6455d;
+  --warn: #b7791f;
+  --dry: #d9dde4;
+  --ease: cubic-bezier(0.16, 1, 0.3, 1);
+  color-scheme: light;
+}
+
+html {
+  background: var(--bg);
+}
+
+body {
+  margin: 0;
+  min-height: 100dvh;
+  color: var(--ink);
+  font-family: var(--font-sans);
+  font-size: 16px;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+  /* A cold light pooling at the top-left, like light on water; it gives the glass something to frost. */
+  background:
+    radial-gradient(1100px 520px at 12% -8%, rgb(31 91 255 / 0.09), transparent 62%),
+    radial-gradient(900px 480px at 100% 0%, rgb(14 159 110 / 0.05), transparent 60%),
+    var(--bg);
+  background-attachment: fixed;
+}
+
+/* Frosted surfaces. `glass` for panels, `glass-bar` for the sticky top bar. */
+.glass {
+  background: var(--surface);
+  border: 1px solid rgb(255 255 255 / 0.9);
+  box-shadow:
+    0 1px 0 rgb(255 255 255 / 0.9) inset,
+    0 1px 2px rgb(14 23 38 / 0.04),
+    0 12px 32px -12px rgb(14 23 38 / 0.1);
+  backdrop-filter: blur(20px) saturate(1.4);
+  -webkit-backdrop-filter: blur(20px) saturate(1.4);
+}
+.glass-bar {
+  background: rgb(247 248 250 / 0.72);
+  border-bottom: 1px solid var(--line);
+  backdrop-filter: blur(16px) saturate(1.4);
+  -webkit-backdrop-filter: blur(16px) saturate(1.4);
+}
+
+/* Numbers never jitter. */
+.tnum {
+  font-variant-numeric: tabular-nums;
+}
+
+/* Instrument Sans has a width axis: condensed for the big figures, so they read as instruments, not headlines. */
+.condensed {
+  font-stretch: 78%;
+}
+
+/* The closed window drawn as water: a slow drift of light along the band. It is the only ambient motion in the app. */
+.river-flow {
+  background:
+    linear-gradient(90deg, transparent 0%, rgb(255 255 255 / 0.35) 50%, transparent 100%) 0 0 / 40% 100% repeat-x,
+    linear-gradient(90deg, #3d74ff, var(--river) 45%, var(--river-deep));
+  animation: river-drift 9s linear infinite;
+}
+@keyframes river-drift {
+  to {
+    background-position: 250% 0, 0 0;
+  }
+}
+
+.shimmer {
+  background: linear-gradient(90deg, var(--line) 0%, #eef1f5 50%, var(--line) 100%) 0 0 / 200% 100%;
+  animation: shimmer 1.4s linear infinite;
+}
+@keyframes shimmer {
+  to {
+    background-position: -200% 0;
+  }
+}
+
+.live-dot {
+  box-shadow: 0 0 0 0 rgb(31 91 255 / 0.45);
+  animation: live 2s var(--ease) infinite;
+}
+@keyframes live {
+  70% {
+    box-shadow: 0 0 0 6px rgb(31 91 255 / 0);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgb(31 91 255 / 0);
+  }
+}
+
+:focus-visible {
+  outline: 2px solid var(--river);
+  outline-offset: 2px;
+  border-radius: 6px;
+}
+
+input,
+select,
+textarea {
+  font: inherit;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation: none !important;
+    transition: none !important;
+  }
+}
