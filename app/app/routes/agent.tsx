@@ -118,7 +118,7 @@ export default function Agent({ loaderData: { a } }: Route.ComponentProps) {
             <div>
               <p className="text-[13px] font-semibold text-ink-2">Owner wallet</p>
               <p className="mt-1">{a.wallet ? <a className={btn.link} href={bscscanAddr(a.wallet.address)} target="_blank" rel="noreferrer">{shortAddr(a.wallet.address)}</a> : "—"}</p>
-              <p className="mt-2 flex gap-4">
+              <p className="mt-1 flex gap-4 [&>a]:inline-flex [&>a]:min-h-11 [&>a]:items-center">
                 <a className={btn.link} href={a.identity.registration} target="_blank" rel="noreferrer">Registration file</a>
                 {a.identity.scan && <a className={btn.link} href={a.identity.scan} target="_blank" rel="noreferrer">8004scan</a>}
               </p>

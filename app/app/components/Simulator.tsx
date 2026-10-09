@@ -66,7 +66,7 @@ export function Simulator({ stocks, initial }: { stocks: SimStock[]; initial: Si
             </div>
             <div className="mt-2 flex gap-2">
               {PRESETS.map((p) => (
-                <button key={p} type="button" onClick={() => setAmount(p)} className={`rounded-full px-3 py-1 text-[14px] font-semibold ${amount === p ? "bg-river-mist text-river-deep" : "text-ink-2 hover:text-ink"}`}>
+                <button key={p} type="button" onClick={() => setAmount(p)} className={`min-h-11 rounded-full px-3 py-1 text-[14px] font-semibold sm:min-h-0 ${amount === p ? "bg-river-mist text-river-deep" : "text-ink-2 hover:text-ink"}`}>
                   {usd(p, 0)}
                 </button>
               ))}

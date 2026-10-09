@@ -92,7 +92,7 @@ export default function Home({ loaderData: d }: Route.ComponentProps) {
             <a href="#returns" className={btn.quiet}>See what it pays</a>
           </div>
         </div>
-        <div className="mx-auto w-full max-w-[520px] lg:max-w-none">
+        <div className="mx-auto w-full max-w-[400px] lg:max-w-none">
           <RiverWaves />
         </div>
       </section>
@@ -188,7 +188,7 @@ export default function Home({ loaderData: d }: Route.ComponentProps) {
       </section>
 
       <section className="mt-24" aria-label="How River places the position">
-        <ol className="grid gap-5 md:grid-cols-3" data-reveal="stagger">
+        <ol className="grid gap-5 lg:grid-cols-3" data-reveal="stagger">
           {([
             ["How: the position", "A tight band where the trades happen.", "River adds your shares and USDT as concentrated liquidity on PancakeSwap v3. Every swap through the band pays you a fee, and on weekends the price rarely leaves it."],
             ["How: the band", "Measured, not guessed.", "River reads how price moved inside the last four weekends, each rebased to its own start, and sizes the band to μ ± 2σ. Your shares go in as they are: nothing is swapped."],
